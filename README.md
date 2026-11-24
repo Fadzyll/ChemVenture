@@ -17,7 +17,8 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
 - ✅ Phase 2: create/join by 5-letter code, name entry, ready, host-only start, kick, leave,
   refresh/reconnect keeps your seat, host hand-over, **dice roll for turn order**
   (ties re-roll and add, manual rule 1), **character pick in turn order**
-- ⏳ Phase 3: board movement, squares, questions, coins, timer
+- ⏳ Phase 3: board movement, squares, questions, coins, timer, and switch the room server to
+  Durable Object **hibernation** (rooms stop using free-tier time while nobody is acting)
 - ⏳ Phase 4: character powers · Phase 5: 3D (React Three Fiber) · Phase 6: polish
 
 ## Run locally
