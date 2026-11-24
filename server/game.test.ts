@@ -269,7 +269,7 @@ test("publicState hides draw piles", () => {
   const s = newGame();
   assert.ok(s.game!.decks);
   assert.equal(game.publicState(s).game!.decks, undefined);
-  assert.ok(game.nextWakeAt(s)! > 0);
+  assert.ok(game.nextWakeAt(s, 0)! > 0);
 });
 
 // ---------- Phase 4: character powers (newGame: p1 Quark, p2 Mystra, p3 Calco)
@@ -414,4 +414,31 @@ test("only the host can end the game early; richest player wins", () => {
   assert.equal(code(game.hostEndGame(s, "p1", 0)), "NOT_ALLOWED"); // already over
   s = must(rules.playAgain(s, "p1"));
   assert.equal(s.phase, "lobby");
+});
+
+// ---------- alarms must not loop
+
+test("a finished game with players who left never schedules a wake-up", () => {
+  let s = newGame(0);
+  s = rules.markDisconnected(s, "p2", 0);
+  s = rules.markDisconnected(s, "p3", 0);
+  s = must(game.hostEndGame(s, "p1", 1000));
+  s = rules.markDisconnected(s, "p1", 2000); // everyone gone
+  assert.equal(game.nextWakeAt(s, 10 * 60_000), null);
+});
+
+test("past deadlines are ignored when a wake-up changed nothing", () => {
+  let s = newGame(0);
+  s = rules.markDisconnected(s, "p2", 0); // not the current player, so nothing to do for them
+  const now = 60_000;
+  const { state } = game.advanceTime(s, now, rng());
+  assert.equal(state, s, "nothing to do -> same state object");
+  const wake = game.nextWakeAt(state, now, true);
+  assert.ok(wake === null || wake > now, "never schedules in the past");
+});
+
+test("a disconnected current player still gets auto-rolled (wake-up includes their grace end)", () => {
+  let s = newGame(0);
+  s = rules.markDisconnected(s, "p1", 0);
+  assert.equal(game.nextWakeAt(s, 1000), 20_000);
 });

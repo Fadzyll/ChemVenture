@@ -173,8 +173,12 @@ export class ChemRoom extends Server<Env> {
   /** Wakes the room for deadlines: answer timers, the game clock, disconnect grace periods. */
   async onAlarm() {
     const { state, events } = game.advanceTime(this.state, Date.now(), rng);
-    // If nothing changed, still reschedule (commit does that).
-    await this.commit(state, events);
+    if (state !== this.state || events.length > 0) {
+      await this.commit(state, events);
+    } else {
+      // Nothing changed: don't save or broadcast, and only wake again for future deadlines.
+      await this.schedule(state, true);
+    }
   }
 
   // ---- helpers ------------------------------------------------------------
@@ -182,12 +186,16 @@ export class ChemRoom extends Server<Env> {
   private async commit(next: RoomState, events: GameEvent[]) {
     this.state = next;
     await this.ctx.storage.put(STORAGE_KEY, next);
-    const wake = game.nextWakeAt(next);
-    if (wake === null) await this.ctx.storage.deleteAlarm();
-    else await this.ctx.storage.setAlarm(Math.max(wake, Date.now() + 50));
+    await this.schedule(next, false);
 
     for (const event of events) this.broadcastMsg({ type: "event", event });
     this.broadcastMsg({ type: "state", state: game.publicState(next), now: Date.now() });
+  }
+
+  private async schedule(s: RoomState, futureOnly: boolean) {
+    const wake = game.nextWakeAt(s, Date.now(), futureOnly);
+    if (wake === null) await this.ctx.storage.deleteAlarm();
+    else await this.ctx.storage.setAlarm(Math.max(wake, Date.now() + 250));
   }
 
   private closePlayer(playerId: string, code: number, reason: string) {

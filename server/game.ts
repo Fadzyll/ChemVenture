@@ -772,17 +772,42 @@ export function advanceTime(state: RoomState, now: number, rng: Rng): { state: R
 }
 
 /** When the server should wake up next to call advanceTime(). */
-export function nextWakeAt(s: RoomState): number | null {
+/**
+ * When the server should wake up next to call advanceTime(). Only deadlines that can still
+ * change something count. With `futureOnly`, deadlines already in the past are ignored:
+ * the alarm handler uses that when a wake-up changed nothing, so a room can never get stuck
+ * waking itself up over and over.
+ */
+export function nextWakeAt(s: RoomState, now: number, futureOnly = false): number | null {
   const times: number[] = [];
-  for (const p of s.players) {
-    if (!p.connected && p.disconnectedAt !== null) times.push(p.disconnectedAt + DISCONNECT_GRACE_MS);
+  const graceEnd = (p: RoomState["players"][number]) =>
+    !p.connected && p.disconnectedAt !== null ? p.disconnectedAt + DISCONNECT_GRACE_MS : null;
+
+  // Lobby: players who left get removed after the grace period.
+  if (s.phase === "lobby") {
+    for (const p of s.players) {
+      const t = graceEnd(p);
+      if (t !== null) times.push(t);
+    }
   }
+  // Host hand-over, but only if there is someone connected to hand it to.
+  const host = s.players.find((p) => p.id === s.hostId);
+  const hostGrace = host ? graceEnd(host) : null;
+  if (hostGrace !== null && s.players.some((p) => p.connected)) times.push(hostGrace);
+
   const g = s.game;
   if (s.phase === "playing" && g) {
     times.push(g.endsAt);
     if ("deadline" in g.stage) times.push(g.stage.deadline);
+    // A disconnected player's turn is rolled automatically after the grace period.
+    if (g.stage.kind === "roll") {
+      const cur = s.players.find((p) => p.id === currentPlayerId(s));
+      const t = cur ? graceEnd(cur) : null;
+      if (t !== null) times.push(t);
+    }
   }
-  return times.length ? Math.min(...times) : null;
+  const due = futureOnly ? times.filter((t) => t > now) : times;
+  return due.length ? Math.min(...due) : null;
 }
 
 /** Host helps a disconnected player during the board game. */
