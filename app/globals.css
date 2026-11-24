@@ -728,3 +728,12 @@ button.option:disabled { cursor: default; opacity: 0.75; }
   background: rgba(255, 107, 129, 0.12); border: 1px solid rgba(255, 107, 129, 0.5);
 }
 .end-game-yes { background: var(--bad); color: #2a0008; }
+
+/* ---------- server unavailable ---------- */
+.server-down {
+  display: flex; gap: 14px; align-items: flex-start;
+  max-width: 640px; margin: 0 auto 16px;
+  border-color: rgba(255, 207, 63, 0.55);
+  background: linear-gradient(135deg, rgba(255, 207, 63, 0.12), rgba(34, 18, 82, 0.85));
+}
+.server-down-icon { font-size: 2rem; line-height: 1; }

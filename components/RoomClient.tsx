@@ -187,6 +187,7 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     const full = state && state.phase === "lobby" && state.players.length >= MAX_PLAYERS;
     return (
       <Shell code={code} connected={status === "open"}>
+        {room.unavailable && <ServerUnavailable onRetry={room.retry} />}
         <form className="panel stack" onSubmit={submitName} style={{ maxWidth: 440, margin: "0 auto" }}>
           <h2>{isCreating ? t("Create a new room", "Cipta bilik baharu") : t(`Join room ${code}`, `Sertai bilik ${code}`)}</h2>
           {roomGone && !submitted && (
@@ -231,10 +232,14 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
           {tr(toast)}
         </div>
       )}
-      {status !== "open" && (
-        <div className="notice small" style={{ marginBottom: 12 }}>
-          {t("Connection lost — reconnecting…", "Sambungan terputus — cuba menyambung semula…")}
-        </div>
+      {room.unavailable ? (
+        <ServerUnavailable onRetry={room.retry} />
+      ) : (
+        status !== "open" && (
+          <div className="notice small" style={{ marginBottom: 12 }}>
+            {t("Connection lost — reconnecting…", "Sambungan terputus — cuba menyambung semula…")}
+          </div>
+        )
       )}
       {state!.phase === "lobby" && <Lobby state={state!} me={me} send={room.send} onLeave={leave} />}
       {showRollResults && <RollPhase state={state!} me={me} send={room.send} lastRoll={lastRoll} />}
@@ -290,5 +295,48 @@ function Shell({
       </header>
       {children}
     </main>
+  );
+}
+
+/** Local time of the daily free-plan reset (midnight UTC = 8:00 am in Malaysia). */
+function resetTimeLocal(): string {
+  const now = new Date();
+  const reset = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return reset.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+/** Shown when the game server hasn't been reachable for a while. Keeps retrying in the background. */
+function ServerUnavailable({ onRetry }: { onRetry: () => void }) {
+  const { t } = useLang();
+  // Malaysia is UTC+8: players there just see "8:00 am"; others also get the Malaysian time for reference.
+  const inMalaysiaTime = new Date().getTimezoneOffset() === -480;
+  const at = inMalaysiaTime ? resetTimeLocal() : `${resetTimeLocal()} (8:00 am Malaysia time)`;
+  const atMs = inMalaysiaTime ? resetTimeLocal() : `${resetTimeLocal()} (8:00 pagi waktu Malaysia)`;
+  return (
+    <div className="panel server-down" role="alert">
+      <div className="server-down-icon" aria-hidden>
+        📡
+      </div>
+      <div className="stack" style={{ gap: 6, flex: 1 }}>
+        <strong>{t("The game server can't be reached right now.", "Pelayan permainan tidak dapat dihubungi sekarang.")}</strong>
+        <span className="small">
+          {t("Check your internet connection. We'll keep trying to reconnect.", "Semak sambungan internet anda. Kami akan terus cuba menyambung semula.")}
+        </span>
+        <span className="small muted">
+          {t(
+            `If lots of games were played today, the free daily limit may be used up — it resets at ${at}.`,
+            `Jika banyak permainan dimainkan hari ini, had harian percuma mungkin sudah habis — ia ditetapkan semula pada ${atMs}.`,
+          )}
+        </span>
+        <div className="row" style={{ gap: 8, marginTop: 4 }}>
+          <button className="btn btn-primary btn-small" onClick={onRetry}>
+            {t("Try again", "Cuba lagi")}
+          </button>
+          <Link className="btn btn-ghost btn-small" href="/">
+            {t("Back to home", "Kembali ke laman utama")}
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -8,6 +8,9 @@ import { getPlayerId } from "./identity";
 
 export const GAME_SERVER_HOST = process.env.NEXT_PUBLIC_GAME_SERVER_HOST || "localhost:8787";
 
+/** How long we keep quietly reconnecting before telling the player the server is unavailable. */
+export const UNAVAILABLE_AFTER_MS = 15_000;
+
 export type ConnectionStatus = "connecting" | "open" | "closed" | "replaced" | "kicked";
 
 export interface RoomError {
@@ -20,6 +23,8 @@ export function useRoom(code: string, onEvent?: (e: GameEvent) => void) {
   const [state, setState] = useState<RoomState | null>(null);
   const [error, setError] = useState<RoomError | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
+  /** true once we've failed to reach the server for UNAVAILABLE_AFTER_MS */
+  const [unavailable, setUnavailable] = useState(false);
   const [playerId, setPlayerId] = useState<string>("");
   const socketRef = useRef<PartySocket | null>(null);
   /** server clock minus local clock, so countdowns match on every device */
@@ -94,5 +99,18 @@ export function useRoom(code: string, onEvent?: (e: GameEvent) => void) {
 
   const me = state?.players.find((p) => p.id === playerId) ?? null;
 
-  return { state, me, playerId, status, error, setError, send, enter, forget, serverNow };
+  // Not connected for a while (and not kicked / replaced): tell the player the server is unavailable.
+  useEffect(() => {
+    if (status === "open") {
+      setUnavailable(false);
+      return;
+    }
+    if (status === "kicked" || status === "replaced") return;
+    const t = setTimeout(() => setUnavailable(true), UNAVAILABLE_AFTER_MS);
+    return () => clearTimeout(t);
+  }, [status]);
+
+  const retry = useCallback(() => socketRef.current?.reconnect(), []);
+
+  return { state, me, playerId, status, unavailable, retry, error, setError, send, enter, forget, serverNow };
 }
