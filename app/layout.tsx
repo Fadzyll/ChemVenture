@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka } from "next/font/google";
 import "./globals.css";
+import { AudioBoot } from "@/components/SoundControls";
 
 const fredoka = Fredoka({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-display" });
 
@@ -19,7 +20,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ms" className={fredoka.variable}>
-      <body>{children}</body>
+      <body>
+        <AudioBoot />
+        {children}
+      </body>
     </html>
   );
 }

@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { generateRoomCode } from "@/shared/roomCode.ts";
 import { MAX_PLAYERS, NAME_MAX_LENGTH, type ErrorCode, type GameEvent, type Phase } from "@/shared/types.ts";
 import { clearJoined, getJoinedName, getSavedName, saveName, setJoinedName } from "@/lib/identity";
+import { sound } from "@/lib/sound";
 import { useRoom } from "@/lib/useRoom";
+import SoundControls from "./SoundControls";
 import type { MoveAnim } from "./game/Board";
 import GameOver from "./game/GameOver";
 import GameView, { type RollAnim } from "./game/GameView";
@@ -40,6 +42,14 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
   const drumTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onEvent = (e: GameEvent) => {
+    // sound effects
+    if (e.type === "rolled" || (e.type === "moved" && e.roll > 0)) sound.play("dice");
+    if (e.type === "drumCard") sound.play("drum");
+    if (e.type === "power") sound.play("power");
+    if (e.type === "eliminated") sound.play("eliminated");
+    if (e.type === "turnOrderDecided") setTimeout(() => sound.play("fanfare"), 900);
+    if (e.type === "picked") sound.play("join");
+
     if (e.type === "rolled") setLastRoll({ playerId: e.playerId, value: e.value, key: Date.now() });
     if (e.type === "moved") {
       const key = Date.now();
@@ -258,6 +268,7 @@ function Shell({
         </div>
         <span className="spacer" />
         {phase && <span className="phase-tag">{PHASE_LABEL[phase]}</span>}
+        <SoundControls />
         {connected !== undefined && (
           <span className={`conn-dot ${connected ? "" : "off"}`} title={connected ? "Bersambung" : "Terputus"} />
         )}

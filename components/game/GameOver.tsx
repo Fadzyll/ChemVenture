@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { sound } from "@/lib/sound";
 import { CHARACTERS } from "@/shared/characters.ts";
 import { coinPoints } from "@/shared/config.ts";
 import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
@@ -23,6 +25,11 @@ export default function GameOver({
     .sort((a, b) => coinPoints(b.coins) - coinPoints(a.coins));
   const winners = ranked.filter((p) => g.winnerIds.includes(p.id));
   const isHost = state.hostId === me.id;
+  useEffect(() => {
+    sound.play("fanfare");
+    const t = setTimeout(() => sound.play("fanfare"), 900);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <div className="stack" style={{ maxWidth: 640, margin: "0 auto" }}>

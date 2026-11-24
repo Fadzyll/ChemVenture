@@ -30,7 +30,9 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
   card lifts and flips when drawn, character standees that hop square by square, a tumbling dice
   that lands on the server's roll, +/− coin popups, camera views (Isometrik / Atas / Sisi / Fokus),
   automatic quality drop on slow devices, and a 2D board toggle / fallback
-- ⏳ Phase 6: polish (sound, more playtesting)
+- ✅ Phase 6 (in progress): original music + sound effects synthesised in the browser (no audio files),
+  Muzik / Bunyi toggles; redesigned landing page (hero, 5-box room code, characters, how to play,
+  board squares)
 
 ## Run locally
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { sound } from "@/lib/sound";
 import { canStart } from "@/shared/rules.ts";
 import { MAX_PLAYERS, MIN_PLAYERS, type ClientMessage, type Player, type RoomState } from "@/shared/types.ts";
 import PlayerAvatar from "./PlayerAvatar";
@@ -17,6 +18,11 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
   const [copied, setCopied] = useState(false);
   const readyCount = state.players.filter((p) => p.ready).length;
   const startable = canStart(state);
+  const count = useRef(state.players.length);
+  useEffect(() => {
+    if (state.players.length > count.current) sound.play("join");
+    count.current = state.players.length;
+  }, [state.players.length]);
 
   const copyLink = async () => {
     const link = `${window.location.origin}/room/${state.code}`;

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { BOARD, BOARD_SIZE, SQUARE_LABEL } from "@/shared/board.ts";
 import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
+import { sound } from "@/lib/sound";
 import Die from "../Die";
 import Board from "./Board";
 import { STEP_MS, type MoveAnim } from "./useShownPositions";
@@ -94,6 +95,24 @@ export default function GameView({ state, me, send, serverNow, move, roll, notic
         ? stage.deck
         : null;
   const drawn = drawnDeck && !walking ? { deck: drawnDeck, key: g.turnNumber } : null;
+
+  // Sounds: a card whoosh when it's drawn, then a chime/buzz (+ coins) for the result.
+  const drawnSig = drawn ? `${drawn.deck}:${drawn.key}` : null;
+  useEffect(() => {
+    if (drawnSig) sound.play("card");
+  }, [drawnSig]);
+  const resultKey = stage.kind === "result" ? stage.deadline : null;
+  useEffect(() => {
+    if (stage.kind !== "result") return;
+    const r = stage.result;
+    if (r.correctIndex !== undefined) {
+      const someoneRight = Object.values(r.answers ?? {}).some((c) => c === r.correctIndex);
+      const blocked = r.title.includes("dihalang");
+      sound.play(someoneRight && !blocked ? "correct" : "wrong");
+    }
+    if ((r.deltas[me.id] ?? 0) > 0) setTimeout(() => sound.play("coin"), 450);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultKey]);
 
   return (
     <div className="game-grid">

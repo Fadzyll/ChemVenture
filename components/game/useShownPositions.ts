@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BOARD_SIZE } from "@/shared/board.ts";
 import type { Player } from "@/shared/types.ts";
+import { sound } from "@/lib/sound";
 
 export interface MoveAnim {
   playerId: string;
@@ -36,6 +37,7 @@ export function useShownPositions(players: Player[], move: MoveAnim | null): Rec
     const t = setInterval(() => {
       i += 1;
       setShown((s) => ({ ...s, [move.playerId]: (move.from + i) % BOARD_SIZE }));
+      sound.play("step", i);
       if (i >= steps) {
         clearInterval(t);
         walking.current = null;
