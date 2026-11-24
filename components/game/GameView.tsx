@@ -186,6 +186,7 @@ export default function GameView({ state, me, send, serverNow, move, roll, notic
           <div className="muted small">{t("Time left", "Masa tinggal")}</div>
           <div className={`game-clock ${timeLeft < 60_000 ? "game-clock-low" : ""}`}>{formatClock(timeLeft)}</div>
           <div className="muted small">{t("Turn", "Pusingan")} {g.turnNumber}</div>
+          {state.hostId === me.id && <EndGameButton onConfirm={() => send({ type: "endGame" })} />}
         </section>
         <PowerCard state={state} me={me} send={send} />
         <section className="panel">
@@ -202,6 +203,34 @@ export default function GameView({ state, me, send, serverNow, move, roll, notic
           </ul>
         </section>
       </aside>
+    </div>
+  );
+}
+
+/** Host only: stop the game now. Asks for confirmation first so it can't be pressed by accident. */
+function EndGameButton({ onConfirm }: { onConfirm: () => void }) {
+  const { t } = useLang();
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button className="btn btn-ghost btn-small end-game-btn" onClick={() => setAsking(true)}>
+        ⏹ {t("End game", "Tamatkan permainan")}
+      </button>
+    );
+  }
+  return (
+    <div className="end-game-confirm" role="alertdialog" aria-label={t("End the game?", "Tamatkan permainan?")}>
+      <div className="small">
+        {t("End the game for everyone now? The player with the most points wins.", "Tamatkan permainan untuk semua sekarang? Pemain dengan mata tertinggi menang.")}
+      </div>
+      <div className="row" style={{ justifyContent: "center", gap: 8 }}>
+        <button className="btn btn-small end-game-yes" onClick={onConfirm}>
+          {t("Yes, end it", "Ya, tamatkan")}
+        </button>
+        <button className="btn btn-ghost btn-small" onClick={() => setAsking(false)}>
+          {t("Cancel", "Batal")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -714,7 +714,7 @@ function nextTurn(s: RoomState, now: number): RoomState {
   return s;
 }
 
-export function endGame(state: RoomState, now: number, reason: "time" | "lastPlayer"): RoomState {
+export function endGame(state: RoomState, now: number, reason: "time" | "lastPlayer" | "host"): RoomState {
   const s = clone(state);
   const g = s.game!;
   const contenders = s.players.filter((p) => s.turnOrder.includes(p.id));
@@ -725,8 +725,21 @@ export function endGame(state: RoomState, now: number, reason: "time" | "lastPla
   g.stage = { kind: "roll" };
   s.phase = "ended";
   const names = g.winnerIds.map((id) => player(s, id).name).join(" & ");
-  log(s, now, reason === "time" ? tx(`Time's up! Winner: ${names}.`, `Masa tamat! Pemenang: ${names}.`) : tx(`Only one player left. Winner: ${names}.`, `Hanya seorang pemain tinggal. Pemenang: ${names}.`));
+  const why =
+    reason === "time"
+      ? tx("Time's up!", "Masa tamat!")
+      : reason === "host"
+        ? tx("The host ended the game.", "Hos menamatkan permainan.")
+        : tx("Only one player left.", "Hanya seorang pemain tinggal.");
+  log(s, now, tx(`${why.en} Winner: ${names}.`, `${why.ms} Pemenang: ${names}.`));
   return s;
+}
+
+/** The host stops the game early. Whoever has the most coin points right now wins. */
+export function hostEndGame(state: RoomState, playerId: string, now: number): Result {
+  if (state.hostId !== playerId) return fail("NOT_HOST", tx("Only the host can end the game.", "Hanya hos boleh menamatkan permainan."));
+  if (state.phase !== "playing" || !state.game) return fail("NOT_ALLOWED", tx("The game isn't running.", "Permainan tidak sedang berjalan."));
+  return { ok: true, state: endGame(state, now, "host"), events: [] };
 }
 
 // ---------------------------------------------------------------- clock

@@ -400,3 +400,18 @@ test("powers reset to 2 at the start of each game", () => {
   const s = newGame();
   assert.ok(s.players.every((p) => p.powersLeft === 2));
 });
+
+// ---------- host ends the game early
+
+test("only the host can end the game early; richest player wins", () => {
+  let s = newGame();
+  P(s, "p2").coins.oktet += 1;
+  assert.equal(code(game.hostEndGame(s, "p2", 0)), "NOT_HOST");
+  s = must(game.hostEndGame(s, "p1", 0));
+  assert.equal(s.phase, "ended");
+  assert.equal(s.game!.endReason, "host");
+  assert.deepEqual(s.game!.winnerIds, ["p2"]);
+  assert.equal(code(game.hostEndGame(s, "p1", 0)), "NOT_ALLOWED"); // already over
+  s = must(rules.playAgain(s, "p1"));
+  assert.equal(s.phase, "lobby");
+});

@@ -37,7 +37,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: "Mystra",
     power:
       "Boleh mencabar pemain lain untuk menjawab soalan pemain tersebut (kad soalan ion/kovalen sahaja).",
-    powerEn: "Challenge another player to answer your Ion/Kovalen question.",
+    powerEn: "Challenge another player to answer your Ion/Covalent question.",
     color: "#e0457b",
     image: "/characters/mystra.png",
   },
@@ -45,7 +45,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     id: "quark",
     name: "Quark",
     power: "Boleh melihat & memilih soalan yang ingin dijawab jika menjejak petak ion/kovalen.",
-    powerEn: "On Ion/Kovalen squares, see the questions and choose one.",
+    powerEn: "On Ion/Covalent squares, see the questions and choose one.",
     color: "#f2a33a",
     image: "/characters/quark.png",
   },
@@ -54,7 +54,7 @@ export const CHARACTERS: Record<CharacterId, Character> = {
     name: "Calco",
     power:
       "Boleh menghalang pemain lain mendapat ganjaran jika pemain lain berjaya menjawab kad soalan ion/kovalen.",
-    powerEn: "Block another player's reward after they answer an Ion/Kovalen card correctly.",
+    powerEn: "Block another player's reward after they answer an Ion/Covalent card correctly.",
     color: "#9b7bff",
     image: "/characters/calco.png",
   },

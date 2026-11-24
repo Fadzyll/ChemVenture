@@ -143,6 +143,9 @@ export class ChemRoom extends Server<Env> {
           }
         }
         break;
+      case "endGame":
+        result = game.hostEndGame(s, playerId, now);
+        break;
       case "playAgain":
         result = rules.playAgain(s, playerId);
         break;

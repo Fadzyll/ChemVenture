@@ -99,7 +99,7 @@ export interface GameState {
   lastMove: { playerId: string; from: number; to: number; roll: number; at: number } | null;
   /** filled when the game ends */
   winnerIds: string[];
-  endReason: "time" | "lastPlayer" | null;
+  endReason: "time" | "lastPlayer" | "host" | null;
 }
 
 export interface RoomState {
@@ -138,6 +138,8 @@ export type ClientMessage =
   /** host acts for a disconnected player so the game is not stuck */
   | { type: "actFor"; playerId: string }
   | { type: "playAgain" }
+  /** host stops the game early; the richest player wins */
+  | { type: "endGame" }
   | { type: "leave" };
 
 export type ErrorCode =

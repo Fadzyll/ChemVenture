@@ -36,7 +36,11 @@ export default function GameOver({
   return (
     <div className="stack" style={{ maxWidth: 640, margin: "0 auto" }}>
       <div className="turn-banner">
-        {g.endReason === "time" ? t("Time's up!", "Masa tamat!") : t("Only one player left!", "Hanya seorang pemain tinggal!")}{" "}
+        {g.endReason === "time"
+          ? t("Time's up!", "Masa tamat!")
+          : g.endReason === "host"
+            ? t("The host ended the game.", "Hos menamatkan permainan.")
+            : t("Only one player left!", "Hanya seorang pemain tinggal!")}{" "}
         <strong>{winners.map((p) => p.name).join(" & ")}</strong> {winners.length > 1 ? t("win!", "menang!") : t("wins!", "menang!")}
       </div>
 
