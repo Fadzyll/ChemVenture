@@ -1,22 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { BOARD, BOARD_IMAGE, BOARD_SIZE } from "@/shared/board.ts";
+import { BOARD, BOARD_IMAGE } from "@/shared/board.ts";
 import { CHARACTERS } from "@/shared/characters.ts";
 import type { Player } from "@/shared/types.ts";
+import { tokenOffset, useShownPositions, type MoveAnim } from "./useShownPositions";
 
-export interface MoveAnim {
-  playerId: string;
-  from: number;
-  to: number;
-  key: number;
-}
-
-const STEP_MS = 220;
+export type { MoveAnim };
 
 /**
  * 2D board using the real board artwork, with character tokens on top.
- * Tokens walk square by square after a roll. (The 3D board comes in Phase 5.)
+ * Used as a fallback when 3D isn't available, or when the player picks the 2D view.
  */
 export default function Board({
   players,
@@ -27,49 +20,7 @@ export default function Board({
   currentId: string | null;
   move: MoveAnim | null;
 }) {
-  // Positions as displayed (may lag behind the real state while a token is walking).
-  const [shown, setShown] = useState<Record<string, number>>(() =>
-    Object.fromEntries(players.map((p) => [p.id, p.position])),
-  );
-  const walking = useRef<string | null>(null);
-  const latest = useRef(players);
-  latest.current = players;
-
-  // Walk animation for the latest dice move.
-  useEffect(() => {
-    if (!move) return;
-    const steps = (move.to - move.from + BOARD_SIZE) % BOARD_SIZE;
-    if (steps === 0) return;
-    walking.current = move.playerId;
-    let i = 0;
-    setShown((s) => ({ ...s, [move.playerId]: move.from }));
-    const t = setInterval(() => {
-      i += 1;
-      setShown((s) => ({ ...s, [move.playerId]: (move.from + i) % BOARD_SIZE }));
-      if (i >= steps) {
-        clearInterval(t);
-        walking.current = null;
-        // Catch up with anything that happened after the walk (e.g. a DRUM card sent them to RADIKAL).
-        setTimeout(() => {
-          const real = latest.current.find((p) => p.id === move.playerId);
-          if (real) setShown((s) => ({ ...s, [real.id]: real.position }));
-        }, 500);
-      }
-    }, STEP_MS);
-    return () => {
-      clearInterval(t);
-      walking.current = null;
-    };
-  }, [move]);
-
-  // Any other position change (e.g. sent to RADIKAL) jumps directly. Wait for walking tokens to finish.
-  useEffect(() => {
-    setShown((s) => {
-      const next = { ...s };
-      for (const p of players) if (walking.current !== p.id) next[p.id] = p.position;
-      return next;
-    });
-  }, [players]);
+  const shown = useShownPositions(players, move);
 
   const onBoard = players.filter((p) => !p.eliminated);
   const bySquare = new Map<number, Player[]>();
@@ -96,21 +47,14 @@ export default function Board({
         const sq = BOARD[pos];
         return group.map((p, i) => {
           const c = p.character ? CHARACTERS[p.character] : null;
-          // Spread up to 5 tokens around the centre of the square.
-          const n = group.length;
-          const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-          const r = n === 1 ? 0 : 0.24;
-          const cx = BOARD_IMAGE.left + BOARD_IMAGE.cellW * (sq.col + 0.5 + Math.cos(angle) * r);
-          const cy = BOARD_IMAGE.top + BOARD_IMAGE.cellH * (sq.row + 0.5 + Math.sin(angle) * r);
+          const { dx, dy } = tokenOffset(i, group.length);
+          const cx = BOARD_IMAGE.left + BOARD_IMAGE.cellW * (sq.col + 0.5 + dx);
+          const cy = BOARD_IMAGE.top + BOARD_IMAGE.cellH * (sq.row + 0.5 + dy);
           return (
             <div
               key={p.id}
               className={`token ${p.id === currentId ? "token-active" : ""} ${p.connected ? "" : "token-off"}`}
-              style={{
-                left: `${cx * 100}%`,
-                top: `${cy * 100}%`,
-                borderColor: c?.color ?? "#fff",
-              }}
+              style={{ left: `${cx * 100}%`, top: `${cy * 100}%`, borderColor: c?.color ?? "#fff" }}
               title={`${p.name}${c ? ` (${c.name})` : ""}`}
             >
               {c ? (

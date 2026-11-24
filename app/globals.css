@@ -415,3 +415,55 @@ button.option:disabled { cursor: default; opacity: 0.75; }
 .power-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); }
 .power-dot.on { background: #f062d0; border-color: #ffb3ec; box-shadow: 0 0 6px #f062d0; }
 .quark-option { align-items: flex-start; }
+
+/* ---------- 3D board ---------- */
+.board3d {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10.5;
+  border-radius: 14px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, rgba(90, 40, 180, 0.35), rgba(10, 4, 30, 0.6));
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.5);
+  touch-action: pan-y;
+}
+@media (max-width: 700px) { .board3d { aspect-ratio: 4 / 3.3; } .token3d-label { font-size: 10px; } }
+.board3d-loading { display: grid; place-items: center; color: var(--muted); }
+.board3d-hint {
+  position: absolute; left: 12px; bottom: 10px;
+  font-size: 0.72rem; color: var(--muted);
+  background: rgba(10, 4, 30, 0.55); padding: 3px 8px; border-radius: 999px;
+  pointer-events: none;
+}
+.view-toggle { position: absolute; top: 10px; right: 10px; z-index: 6; background: rgba(10, 4, 30, 0.6); }
+.token3d-label {
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  padding: 1px 7px; border-radius: 999px;
+  background: rgba(16, 6, 40, 0.75); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transform: translateY(-4px);
+}
+.token3d-label.active { background: var(--accent); color: #2b1300; border-color: var(--accent); }
+.token3d-delta {
+  position: absolute; left: 50%; top: -6px;
+  font-weight: 800; font-size: 18px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  animation: floatUp 2.2s ease-out forwards;
+}
+.token3d-delta.up { color: #6dffb0; }
+.token3d-delta.down { color: #ff8095; }
+@keyframes floatUp {
+  from { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+  15% { transform: translate(-50%, -10px) scale(1.15); opacity: 1; }
+  to { transform: translate(-50%, -48px) scale(1); opacity: 0; }
+}
+
+/* cards flip in like a card being turned over */
+.stage-card { animation: flipIn 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.2); transform-origin: center; }
+@keyframes flipIn {
+  from { transform: perspective(1000px) rotateY(85deg) scale(0.9); opacity: 0; }
+  to { transform: perspective(1000px) rotateY(0deg) scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-card, .token-active, .token3d-delta { animation: none; }
+}
