@@ -1,7 +1,17 @@
 "use client";
 
 import { SQUARE_COLOR, SQUARE_LABEL } from "@/shared/board.ts";
-import { CHOICE_SECONDS, DRUM_QUESTION_SECONDS, ESCAPE_COST, QUESTION_SECONDS, RESULT_SECONDS } from "@/shared/config.ts";
+import { CHARACTERS } from "@/shared/characters.ts";
+import {
+  CALCO_SECONDS,
+  CHOICE_SECONDS,
+  DRUM_QUESTION_SECONDS,
+  ESCAPE_COST,
+  QUARK_CHOICES,
+  QUARK_SECONDS,
+  QUESTION_SECONDS,
+  RESULT_SECONDS,
+} from "@/shared/config.ts";
 import type { ClientMessage, Player, PublicQuestion, RoomState, Stage } from "@/shared/types.ts";
 import { useCountdown } from "./useCountdown";
 
@@ -24,14 +34,15 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
 
   if (stage.kind === "roll") return null;
 
-  const total =
-    stage.kind === "question"
-      ? QUESTION_SECONDS
-      : stage.kind === "drumQuestion"
-        ? DRUM_QUESTION_SECONDS
-        : stage.kind === "choice"
-          ? CHOICE_SECONDS
-          : RESULT_SECONDS;
+  const total = {
+    question: QUESTION_SECONDS,
+    drumQuestion: DRUM_QUESTION_SECONDS,
+    choice: CHOICE_SECONDS,
+    quarkPick: QUARK_SECONDS,
+    calcoWindow: CALCO_SECONDS,
+    result: RESULT_SECONDS,
+  }[stage.kind];
+  const nameOf = (id: string) => (id === me.id ? "Anda" : (state.players.find((p) => p.id === id)?.name ?? "?"));
   const timer = (
     <div className="stage-timer" aria-label={`${Math.ceil(left / 1000)} saat lagi`}>
       <div className="stage-timer-bar" style={{ width: `${Math.min(100, (left / (total * 1000)) * 100)}%` }} />
@@ -40,11 +51,13 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
   );
 
   if (stage.kind === "question") {
-    const mine = currentId === me.id;
+    const mine = stage.answererId === me.id;
+    const answerer = state.players.find((p) => p.id === stage.answererId)!;
+    const challenge = stage.challengedBy ? `Mystra (${nameOf(stage.challengedBy)}) mencabar ${nameOf(answerer.id)}! ` : "";
     return (
       <QuestionView
         question={stage.question}
-        subtitle={mine ? "Giliran anda menjawab!" : `${current.name} sedang menjawab…`}
+        subtitle={challenge + (mine ? "Giliran anda menjawab!" : `${answerer.name} sedang menjawab…`)}
         canAnswer={mine}
         onAnswer={(i) => send({ type: "answer", choice: i })}
         timer={timer}
@@ -96,6 +109,77 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
           </div>
         ) : (
           <p className="muted center">Menunggu {current.name} membuat pilihan…</p>
+        )}
+        {timer}
+      </div>
+    );
+  }
+
+  if (stage.kind === "quarkPick") {
+    const mine = currentId === me.id;
+    const color = SQUARE_COLOR[stage.deck];
+    return (
+      <div className="stage-card" style={{ borderColor: CHARACTERS.quark.color }}>
+        <div className="stage-deck" style={{ background: color, color: stage.deck === "kovalen" ? "#2b2000" : "#fff" }}>
+          KAD {stage.deck.toUpperCase()} · KUASA QUARK
+        </div>
+        {!stage.revealed ? (
+          mine ? (
+            <>
+              <p className="stage-prompt">Guna kuasa Quark untuk melihat {QUARK_CHOICES} kad dan memilih soalan yang anda mahu?</p>
+              <div className="stage-options">
+                <button className="btn btn-pink" onClick={() => send({ type: "usePower" })}>
+                  Guna kuasa ({me.powersLeft} lagi)
+                </button>
+                <button className="btn btn-ghost" onClick={() => send({ type: "skipPower" })}>
+                  Ambil kad biasa
+                </button>
+              </div>
+            </>
+          ) : (
+            <p className="muted center">{current.name} (Quark) sedang memutuskan sama ada mahu guna kuasa…</p>
+          )
+        ) : (
+          <>
+            <div className="muted small center">
+              {mine ? "Pilih satu soalan untuk dijawab:" : `${current.name} sedang memilih soalan…`}
+            </div>
+            <div className="stage-options">
+              {stage.options.map((q, i) => (
+                <button key={q.id} className="option quark-option" disabled={!mine} onClick={() => send({ type: "pickQuestion", index: i })}>
+                  <span className="option-letter">{i + 1}</span>
+                  <span>{q.prompt}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {timer}
+      </div>
+    );
+  }
+
+  if (stage.kind === "calcoWindow") {
+    const mine = stage.calcoId === me.id;
+    return (
+      <div className="stage-card" style={{ borderColor: CHARACTERS.calco.color }}>
+        <div className="stage-deck" style={{ background: CHARACTERS.calco.color }}>
+          KUASA CALCO
+        </div>
+        <p className="stage-prompt">
+          {nameOf(stage.answererId)} menjawab dengan betul!
+          <br />
+          {mine ? "Halang ganjarannya?" : `Menunggu ${nameOf(stage.calcoId)} (Calco)…`}
+        </p>
+        {mine && (
+          <div className="stage-options">
+            <button className="btn btn-pink" onClick={() => send({ type: "usePower" })}>
+              Halang ganjaran ({me.powersLeft} lagi)
+            </button>
+            <button className="btn btn-ghost" onClick={() => send({ type: "skipPower" })}>
+              Biarkan
+            </button>
+          </div>
         )}
         {timer}
       </div>

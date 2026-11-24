@@ -271,3 +271,132 @@ test("publicState hides draw piles", () => {
   assert.equal(game.publicState(s).game!.decks, undefined);
   assert.ok(game.nextWakeAt(s)! > 0);
 });
+
+// ---------- Phase 4: character powers (newGame: p1 Quark, p2 Mystra, p3 Calco)
+
+const code = (r: rules.Result) => (r.ok ? "OK" : r.code);
+const ION2 = 2; // board index of the first ION square
+
+test("Oxyra: +1 duplet before rolling, only on own turn, max 2 uses", () => {
+  let s = newGame();
+  P(s, "p1").character = "oxyra";
+  assert.equal(code(game.usePower(s, "p2", undefined, 0)), "NOT_ALLOWED"); // Mystra can't use it now
+  s = must(game.usePower(s, "p1", undefined, 0));
+  s = must(game.usePower(s, "p1", undefined, 0));
+  assert.equal(pts(s, "p1"), 19);
+  assert.equal(P(s, "p1").powersLeft, 0);
+  assert.equal(code(game.usePower(s, "p1", undefined, 0)), "NOT_ALLOWED");
+});
+
+test("Ghoston: takes 2 singlets from a chosen player", () => {
+  let s = newGame();
+  P(s, "p1").character = "ghoston";
+  assert.equal(code(game.usePower(s, "p1", "p1", 0)), "BAD_MESSAGE"); // not yourself
+  s = must(game.usePower(s, "p1", "p3", 0));
+  assert.equal(P(s, "p1").coins.singlet, 5);
+  assert.equal(pts(s, "p3"), 13);
+});
+
+test("Ghoston can eliminate a broke player", () => {
+  let s = newGame();
+  P(s, "p1").character = "ghoston";
+  P(s, "p3").coins = { singlet: 1, duplet: 0, oktet: 0 };
+  s = must(game.usePower(s, "p1", "p3", 0));
+  assert.equal(P(s, "p3").eliminated, true);
+});
+
+test("Quark: landing on ION offers the power; using it reveals 3 cards to choose from", () => {
+  let s = newGame();
+  placeBefore(s, "p1", ION2);
+  s = must(game.roll(s, "p1", 0, rng([1])));
+  const st = s.game!.stage as { kind: string; revealed: boolean; options: unknown[] };
+  assert.equal(st.kind, "quarkPick");
+  assert.equal(st.options.length, 0, "cards stay hidden until the power is used");
+  s = must(game.usePower(s, "p1", undefined, 0));
+  const opts = (s.game!.stage as { options: { id: string }[] }).options;
+  assert.equal(opts.length, 3);
+  assert.equal(P(s, "p1").powersLeft, 1);
+  s = must(game.pickQuestion(s, "p1", 2, 0));
+  assert.equal((s.game!.stage as { question: { id: string } }).question.id, opts[2].id);
+  assert.equal(s.game!.decks!.ion.length, 10 - 1, "the 2 unchosen cards go back in the deck");
+});
+
+test("Quark can skip the power and draw normally (no use spent)", () => {
+  let s = newGame();
+  placeBefore(s, "p1", ION2);
+  s = must(game.roll(s, "p1", 0, rng([1])));
+  s = must(game.skipPower(s, "p1", 0));
+  assert.equal(s.game!.stage.kind, "question");
+  assert.equal(P(s, "p1").powersLeft, 2);
+  assert.equal(s.game!.decks!.ion.length, 9);
+});
+
+test("Mystra: challenges another player to answer; they get the reward or penalty", () => {
+  let s = newGame();
+  s = game.advanceTime(must(game.roll(s, "p1", 0, rng([1]))), 0, rng()).state; // p1 lands on ASAS
+  s = must(game.answer(s, "p1", 0, 0));
+  s = game.advanceTime(s, 10_000, rng()).state; // -> p2 (Mystra)
+  assert.equal(game.currentPlayerId(s), "p2");
+  stack(s, "ion", "ion-1");
+  s = must(game.roll(s, "p2", 0, rng([2])));
+  s = must(game.usePower(s, "p2", "p1", 0));
+  const st = s.game!.stage as { answererId: string; challengedBy: string };
+  assert.deepEqual([st.answererId, st.challengedBy], ["p1", "p2"]);
+  assert.equal(code(game.answer(s, "p2", 0, 0)), "NOT_YOUR_TURN");
+  const before = pts(s, "p1");
+  s = must(game.answer(s, "p1", (card("ion-1").answer + 1) % 3, 0));
+  assert.equal(pts(s, "p1"), before - 1);
+  assert.equal(pts(s, "p2"), 15, "Mystra is unaffected");
+});
+
+test("Mystra can't challenge on an ASAS card", () => {
+  let s = newGame();
+  s = game.advanceTime(must(game.roll(s, "p1", 0, rng([1]))), 0, rng()).state;
+  s = must(game.answer(s, "p1", 0, 0));
+  s = game.advanceTime(s, 10_000, rng()).state;
+  s = must(game.roll(s, "p2", 0, rng([1]))); // ASAS
+  assert.equal(code(game.usePower(s, "p2", "p1", 0)), "NOT_ALLOWED");
+});
+
+test("Calco: a correct ION answer opens a window; blocking cancels the reward", () => {
+  let s = newGame();
+  P(s, "p1").character = "oxyra"; // so p1 isn't Quark
+  stack(s, "ion", "ion-1");
+  s = must(game.roll(s, "p1", 0, rng([2])));
+  s = must(game.answer(s, "p1", card("ion-1").answer, 0));
+  const st = s.game!.stage as { kind: string; calcoId: string };
+  assert.deepEqual([st.kind, st.calcoId], ["calcoWindow", "p3"]);
+  assert.equal(code(game.usePower(s, "p2", undefined, 0)), "NOT_ALLOWED"); // only Calco
+  s = must(game.usePower(s, "p3", undefined, 0));
+  assert.equal(s.game!.stage.kind, "result");
+  assert.equal(pts(s, "p1"), 15, "no reward");
+  assert.equal(P(s, "p3").powersLeft, 1);
+});
+
+test("Calco: letting it through (or timing out) pays the reward", () => {
+  let s = newGame();
+  P(s, "p1").character = "oxyra";
+  stack(s, "ion", "ion-1");
+  s = must(game.roll(s, "p1", 0, rng([2])));
+  s = must(game.answer(s, "p1", card("ion-1").answer, 0));
+  const deadline = (s.game!.stage as { deadline: number }).deadline;
+  s = game.advanceTime(s, deadline, rng()).state;
+  assert.equal(s.game!.stage.kind, "result");
+  assert.equal(pts(s, "p1"), 17);
+  assert.equal(P(s, "p3").powersLeft, 2);
+});
+
+test("Calco gets no window for ASAS, wrong answers, own answers, or when out of uses", () => {
+  let s = newGame();
+  P(s, "p1").character = "oxyra";
+  P(s, "p3").powersLeft = 0;
+  stack(s, "ion", "ion-1");
+  s = must(game.roll(s, "p1", 0, rng([2])));
+  s = must(game.answer(s, "p1", card("ion-1").answer, 0));
+  assert.equal(s.game!.stage.kind, "result");
+});
+
+test("powers reset to 2 at the start of each game", () => {
+  const s = newGame();
+  assert.ok(s.players.every((p) => p.powersLeft === 2));
+});

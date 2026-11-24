@@ -4,6 +4,7 @@ import { CHARACTERS } from "@/shared/characters.ts";
 import { coinPoints } from "@/shared/config.ts";
 import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
 import PlayerAvatar from "../PlayerAvatar";
+import { PowerDots } from "./PowerCard";
 
 export function Coins({ p }: { p: Player }) {
   return (
@@ -53,6 +54,7 @@ export default function PlayerPanel({
               <div className="row" style={{ gap: 6 }}>
                 <Coins p={p} />
                 <strong className="points">{coinPoints(p.coins)} mata</strong>
+                <PowerDots left={p.powersLeft} />
               </div>
               <div className="row" style={{ gap: 4, marginTop: 4 }}>
                 {isCurrent && <span className="badge badge-host">Giliran</span>}

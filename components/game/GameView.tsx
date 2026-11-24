@@ -6,6 +6,7 @@ import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
 import Die from "../Die";
 import Board, { type MoveAnim } from "./Board";
 import PlayerPanel from "./PlayerPanel";
+import PowerCard from "./PowerCard";
 import StagePanel from "./StagePanel";
 import { formatClock, useCountdown } from "./useCountdown";
 
@@ -21,10 +22,10 @@ interface Props {
   serverNow: () => number;
   move: MoveAnim | null;
   roll: RollAnim | null;
-  drumText: string | null;
+  notice: string | null;
 }
 
-export default function GameView({ state, me, send, serverNow, move, roll, drumText }: Props) {
+export default function GameView({ state, me, send, serverNow, move, roll, notice }: Props) {
   const g = state.game!;
   const currentId = state.turnOrder[g.turnIndex];
   const current = state.players.find((p) => p.id === currentId)!;
@@ -70,7 +71,7 @@ export default function GameView({ state, me, send, serverNow, move, roll, drumT
                 <strong>{current.name}</strong> di petak {SQUARE_LABEL[BOARD[current.position].type]}
               </span>
             )}
-            {drumText && <div className="small notice" style={{ marginTop: 6 }}>DRUM: {drumText}</div>}
+            {notice && <div className="small notice" style={{ marginTop: 6 }}>{notice}</div>}
           </div>
           {stage.kind === "roll" && myTurn && (
             <button className="btn btn-primary btn-big" onClick={() => send({ type: "roll" })}>
@@ -86,6 +87,7 @@ export default function GameView({ state, me, send, serverNow, move, roll, drumT
           <div className={`game-clock ${timeLeft < 60_000 ? "game-clock-low" : ""}`}>{formatClock(timeLeft)}</div>
           <div className="muted small">Pusingan {g.turnNumber}</div>
         </section>
+        <PowerCard state={state} me={me} send={send} />
         <section className="panel">
           <PlayerPanel state={state} me={me} send={send} />
         </section>

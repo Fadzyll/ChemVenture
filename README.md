@@ -21,7 +21,10 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
   question cards (Asas / Ion / Kovalen), DRUM (everyone answers, or a reward/penalty card),
   RADIKAL / GANGGUAN choices, coins with change, elimination, 20-minute timer, results + play again,
   room server uses Durable Object **hibernation** + alarms (no free-tier time used while idle)
-- ⏳ Phase 4: character powers · Phase 5: 3D (React Three Fiber) · Phase 6: polish
+- ✅ Phase 4: the 5 character powers, 2 uses each — Oxyra (+1 duplet), Ghoston (take 2 singlets),
+  Quark (see 3 ION/KOVALEN cards and choose), Mystra (challenge another player to answer),
+  Calco (block a correct ION/KOVALEN answer's reward, 8-second window)
+- ⏳ Phase 5: 3D (React Three Fiber) · Phase 6: polish
 
 ## Run locally
 

@@ -4,7 +4,9 @@
  * Server-only because it reads the answer key in ./cards.ts.
  */
 import { BOARD, BOARD_SIZE, RADIKAL_INDEX, SQUARE_LABEL } from "../shared/board.ts";
+import { CHARACTERS, POWER_USES } from "../shared/characters.ts";
 import {
+  CALCO_SECONDS,
   CHOICE_SECONDS,
   COIN_LABEL,
   COIN_VALUE,
@@ -12,6 +14,8 @@ import {
   ESCAPE_COST,
   GAME_MINUTES,
   PENALTY,
+  QUARK_CHOICES,
+  QUARK_SECONDS,
   QUESTION_SECONDS,
   REAKSI_BONUS,
   RESULT_SECONDS,
@@ -22,7 +26,15 @@ import {
   type Coins,
 } from "../shared/config.ts";
 import * as rules from "../shared/rules.ts";
-import { DISCONNECT_GRACE_MS, type DeckId, type GameEvent, type RoomState, type TurnResult } from "../shared/types.ts";
+import {
+  DISCONNECT_GRACE_MS,
+  type DeckId,
+  type GameEvent,
+  type PublicQuestion,
+  type RoomState,
+  type Stage,
+  type TurnResult,
+} from "../shared/types.ts";
 import { CARDS, DECK_CARD_IDS, toPublic, type DrumEffect, type EffectCard, type QuestionCard } from "./cards.ts";
 
 export interface Rng {
@@ -112,6 +124,7 @@ export function initGame(state: RoomState, now: number, rng: Rng): RoomState {
     p.coins = { ...START_COINS };
     p.skipTurns = 0;
     p.eliminated = false;
+    p.powersLeft = POWER_USES;
   }
   s.game = {
     startedAt: now,
@@ -202,9 +215,16 @@ function resolveSquare(
     case "asas":
     case "ion":
     case "kovalen": {
-      const card = CARDS[draw(s, square.type, rng)] as QuestionCard;
-      g.stage = { kind: "question", question: toPublic(card), deadline: now + sec(QUESTION_SECONDS) };
       carry.set(s, { deltas, lines });
+      // Quark's power: look at several cards and choose one (ION/KOVALEN only).
+      const deck: DeckId = square.type;
+      if (deck !== "asas" && p.character === "quark" && p.powersLeft > 0) {
+        const ids = Array.from({ length: QUARK_CHOICES }, () => draw(s, deck, rng));
+        carry.get(s).quark = [...new Set(ids)];
+        g.stage = { kind: "quarkPick", deck, revealed: false, options: [], deadline: now + sec(QUARK_SECONDS) };
+        return { ok: true, state: s, events };
+      }
+      askQuestion(s, playerId, CARDS[draw(s, square.type, rng)] as QuestionCard, now);
       return { ok: true, state: s, events };
     }
 
@@ -238,7 +258,14 @@ function resolveSquare(
  * that must survive between messages but should not be sent to players.
  * It's kept on the game state under hidden keys and stripped by publicState().
  */
-type Carry = { deltas: Record<string, number>; lines: string[] };
+type Carry = {
+  deltas: Record<string, number>;
+  lines: string[];
+  /** card ids Quark is choosing between */
+  quark?: string[];
+  /** a correct answer waiting for Calco's decision */
+  pending?: { choice: number };
+};
 const carry = {
   get(s: RoomState): Carry {
     return ((s.game as unknown as { _carry?: Carry })._carry ??= { deltas: {}, lines: [] });
@@ -271,34 +298,27 @@ export function answer(state: RoomState, playerId: string, choice: number | null
   const stage = g.stage;
 
   if (stage.kind === "question") {
-    if (currentPlayerId(state) !== playerId) return fail("NOT_YOUR_TURN", "Bukan giliran anda menjawab.");
+    if (stage.answererId !== playerId) return fail("NOT_YOUR_TURN", "Bukan giliran anda menjawab.");
     if (choice !== null && !validChoice(choice, stage.question.options.length)) return fail("BAD_MESSAGE", "Pilihan tidak sah.");
     const s = clone(state);
     const card = CARDS[stage.question.id] as QuestionCard;
-    const p = player(s, playerId);
-    const { deltas, lines } = carry.get(s);
-    const correct = choice === card.answer;
-    let delta = 0;
-    if (correct) {
-      const reward = card.deck === "asas" ? REWARD.asasCorrect : REWARD.ionKovalenCorrect;
-      addCoins(p.coins, reward);
-      delta = coinPoints(reward);
-      lines.push(`Betul! +${describe(reward)}.`);
-    } else {
-      delta = -takePoints(p.coins, coinPoints(PENALTY.wrongAnswer));
-      lines.push(choice === null ? `Masa tamat! −${describe(PENALTY.wrongAnswer)}.` : `Salah. −${describe(PENALTY.wrongAnswer)}.`);
+    // Calco's power: a correct ION/KOVALEN answer by someone else can have its reward blocked.
+    if (choice === card.answer && card.deck !== "asas") {
+      const calco = active(s).find((p) => p.character === "calco" && p.id !== playerId && p.powersLeft > 0 && p.connected);
+      if (calco) {
+        carry.get(s).pending = { choice };
+        s.game!.stage = {
+          kind: "calcoWindow",
+          answererId: playerId,
+          calcoId: calco.id,
+          question: stage.question,
+          deadline: now + sec(CALCO_SECONDS),
+        };
+        log(s, now, `${player(s, playerId).name} menjawab betul. Adakah ${calco.name} (Calco) akan menghalang?`);
+        return { ok: true, state: s, events: [] };
+      }
     }
-    deltas[playerId] = (deltas[playerId] ?? 0) + delta;
-    log(s, now, `${p.name} ${correct ? "menjawab betul" : "menjawab salah"} soalan ${card.deck.toUpperCase()}.`);
-    return finishTurn(s, now, [], {
-      playerId,
-      title: correct ? "Jawapan betul!" : "Jawapan salah",
-      lines,
-      question: stage.question,
-      correctIndex: card.answer,
-      answers: { [playerId]: choice },
-      deltas,
-    });
+    return settleAnswer(s, playerId, card, stage.question, choice, false, now);
   }
 
   if (stage.kind === "drumQuestion") {
@@ -318,6 +338,175 @@ export function answer(state: RoomState, playerId: string, choice: number | null
 }
 
 const validChoice = (c: number, n: number) => Number.isInteger(c) && c >= 0 && c < n;
+
+function askQuestion(s: RoomState, answererId: string, card: QuestionCard, now: number) {
+  s.game!.stage = { kind: "question", question: toPublic(card), answererId, deadline: now + sec(QUESTION_SECONDS) };
+}
+
+/** Apply the reward / penalty for an answer and end the turn. `blocked` = Calco stopped the reward. */
+function settleAnswer(
+  s: RoomState,
+  answererId: string,
+  card: QuestionCard,
+  question: PublicQuestion,
+  choice: number | null,
+  blocked: boolean,
+  now: number,
+): Result {
+  const p = player(s, answererId);
+  const { deltas, lines } = carry.get(s);
+  const correct = choice === card.answer;
+  let delta = 0;
+  if (correct && blocked) {
+    lines.push(`${p.name}: betul, tetapi ganjaran dihalang oleh Calco!`);
+  } else if (correct) {
+    const reward = card.deck === "asas" ? REWARD.asasCorrect : REWARD.ionKovalenCorrect;
+    addCoins(p.coins, reward);
+    delta = coinPoints(reward);
+    lines.push(`${p.name}: betul! +${describe(reward)}.`);
+  } else {
+    delta = -takePoints(p.coins, coinPoints(PENALTY.wrongAnswer));
+    lines.push(
+      choice === null
+        ? `${p.name}: masa tamat! −${describe(PENALTY.wrongAnswer)}.`
+        : `${p.name}: salah. −${describe(PENALTY.wrongAnswer)}.`,
+    );
+  }
+  deltas[answererId] = (deltas[answererId] ?? 0) + delta;
+  carry.get(s).pending = undefined;
+  log(s, now, `${p.name} ${correct ? "menjawab betul" : "menjawab salah"} soalan ${card.deck.toUpperCase()}.`);
+  return finishTurn(s, now, [], {
+    playerId: currentPlayerId(s)!,
+    title: correct ? (blocked ? "Ganjaran dihalang!" : "Jawapan betul!") : "Jawapan salah",
+    lines,
+    question,
+    correctIndex: card.answer,
+    answers: { [answererId]: choice },
+    deltas,
+  });
+}
+
+// ---------------------------------------------------------------- character powers
+
+/**
+ * - Oxyra:   on your turn before rolling, take 1 duplet from the bank.
+ * - Ghoston: on your turn before rolling, take 2 singlets from a chosen player.
+ * - Mystra:  when you must answer an ION/KOVALEN card, make another player answer it instead.
+ * - Quark:   when offered (landing on ION/KOVALEN), reveal the cards to choose from.
+ * - Calco:   in the Calco window, block the reward.
+ * Every power can be used POWER_USES (2) times per game.
+ */
+export function usePower(state: RoomState, playerId: string, targetId: string | undefined, now: number): Result {
+  const g = state.game;
+  if (state.phase !== "playing" || !g) return fail("NOT_ALLOWED", "Permainan belum bermula.");
+  const me = state.players.find((p) => p.id === playerId);
+  if (!me || me.eliminated || !me.character || !state.turnOrder.includes(playerId)) {
+    return fail("NOT_ALLOWED", "Anda tidak boleh menggunakan kuasa.");
+  }
+  if (me.powersLeft <= 0) return fail("NOT_ALLOWED", "Kuasa anda sudah habis digunakan.");
+  const stage = g.stage;
+  const isCurrent = currentPlayerId(state) === playerId;
+  const s = clone(state);
+  const p = player(s, playerId);
+  const name = CHARACTERS[me.character].name;
+  const spend = (text: string): GameEvent[] => {
+    p.powersLeft -= 1;
+    log(s, now, `${p.name} (${name}) guna kuasa: ${text}`);
+    return [{ type: "power", playerId, text: `${p.name} (${name}): ${text}` }];
+  };
+  const pickTarget = () => {
+    const t = s.players.find((x) => x.id === targetId);
+    return t && t.id !== playerId && !t.eliminated && s.turnOrder.includes(t.id) ? t : null;
+  };
+
+  switch (me.character) {
+    case "oxyra": {
+      if (!isCurrent || stage.kind !== "roll") return fail("NOT_ALLOWED", "Guna kuasa Oxyra pada giliran anda sebelum membaling dadu.");
+      p.coins.duplet += 1;
+      return { ok: true, state: s, events: spend("ambil 1 koin duplet daripada bank.") };
+    }
+    case "ghoston": {
+      if (!isCurrent || stage.kind !== "roll") return fail("NOT_ALLOWED", "Guna kuasa Ghoston pada giliran anda sebelum membaling dadu.");
+      const t = pickTarget();
+      if (!t) return fail("BAD_MESSAGE", "Pilih pemain lain.");
+      if (points(t.coins) <= 0) return fail("NOT_ALLOWED", "Pemain itu tiada koin.");
+      const got = takePoints(t.coins, 2 * COIN_VALUE.singlet);
+      p.coins.singlet += got;
+      const events = spend(`ambil ${got} koin singlet daripada ${t.name}.`);
+      eliminateBroke(s, now, events, []);
+      if (active(s).length <= 1) return { ok: true, state: endGame(s, now, "lastPlayer"), events };
+      return { ok: true, state: s, events };
+    }
+    case "mystra": {
+      if (stage.kind !== "question" || stage.answererId !== playerId || stage.challengedBy || stage.question.deck === "asas") {
+        return fail("NOT_ALLOWED", "Mystra hanya boleh mencabar semasa menjawab kad ION/KOVALEN.");
+      }
+      const t = pickTarget();
+      if (!t) return fail("BAD_MESSAGE", "Pilih pemain lain.");
+      const st = s.game!.stage as Extract<Stage, { kind: "question" }>;
+      st.answererId = t.id;
+      st.challengedBy = playerId;
+      st.deadline = now + sec(QUESTION_SECONDS);
+      return { ok: true, state: s, events: spend(`mencabar ${t.name} menjawab soalan ini!`) };
+    }
+    case "quark": {
+      if (stage.kind !== "quarkPick" || !isCurrent || stage.revealed) {
+        return fail("NOT_ALLOWED", "Kuasa Quark digunakan apabila menjejak petak ION/KOVALEN.");
+      }
+      const ids = carry.get(s).quark ?? [];
+      const st = s.game!.stage as Extract<Stage, { kind: "quarkPick" }>;
+      st.revealed = true;
+      st.options = ids.map((id) => toPublic(CARDS[id] as QuestionCard));
+      st.deadline = now + sec(QUARK_SECONDS);
+      return { ok: true, state: s, events: spend(`melihat ${ids.length} kad dan memilih satu.`) };
+    }
+    case "calco": {
+      if (stage.kind !== "calcoWindow" || stage.calcoId !== playerId) {
+        return fail("NOT_ALLOWED", "Kuasa Calco digunakan selepas pemain lain menjawab betul.");
+      }
+      const events = spend(`menghalang ganjaran ${player(s, stage.answererId).name}!`);
+      const choice = carry.get(s).pending?.choice ?? null;
+      const r = settleAnswer(s, stage.answererId, CARDS[stage.question.id] as QuestionCard, stage.question, choice, true, now);
+      return r.ok ? { ...r, events: [...events, ...r.events] } : r;
+    }
+  }
+}
+
+/** Quark draws normally / Calco lets the reward through. */
+export function skipPower(state: RoomState, playerId: string, now: number): Result {
+  const stage = state.game?.stage;
+  if (state.phase !== "playing" || !stage) return fail("NOT_ALLOWED", "Permainan belum bermula.");
+  if (stage.kind === "quarkPick" && !stage.revealed && currentPlayerId(state) === playerId) {
+    const s = clone(state);
+    const [first, ...rest] = carry.get(s).quark ?? [];
+    s.game!.decks![stage.deck].unshift(...rest); // put the unseen cards back on top
+    carry.get(s).quark = undefined;
+    askQuestion(s, playerId, CARDS[first] as QuestionCard, now);
+    return { ok: true, state: s, events: [] };
+  }
+  if (stage.kind === "calcoWindow" && stage.calcoId === playerId) {
+    const s = clone(state);
+    const choice = carry.get(s).pending?.choice ?? null;
+    return settleAnswer(s, stage.answererId, CARDS[stage.question.id] as QuestionCard, stage.question, choice, false, now);
+  }
+  return fail("NOT_ALLOWED", "Tiada kuasa untuk dilangkau.");
+}
+
+/** Quark picks one of the revealed cards. */
+export function pickQuestion(state: RoomState, playerId: string, index: number, now: number): Result {
+  const stage = state.game?.stage;
+  if (state.phase !== "playing" || stage?.kind !== "quarkPick" || !stage.revealed) return fail("NOT_ALLOWED", "Tiada kad untuk dipilih.");
+  if (currentPlayerId(state) !== playerId) return fail("NOT_YOUR_TURN", "Bukan giliran anda.");
+  if (!validChoice(index, stage.options.length)) return fail("BAD_MESSAGE", "Pilihan tidak sah.");
+  const s = clone(state);
+  const ids = carry.get(s).quark ?? stage.options.map((o) => o.id);
+  const chosen = ids[index];
+  s.game!.decks![stage.deck].push(...ids.filter((id) => id !== chosen)); // the others go to the bottom
+  carry.get(s).quark = undefined;
+  askQuestion(s, playerId, CARDS[chosen] as QuestionCard, now);
+  return { ok: true, state: s, events: [] };
+}
+
 
 function resolveDrumQuestion(s: RoomState, now: number): Result {
   const stage = s.game!.stage;
@@ -457,17 +646,22 @@ function applyEffect(
 
 // ---------------------------------------------------------------- end of turn
 
-function finishTurn(s: RoomState, now: number, events: GameEvent[], result: TurnResult, seconds = RESULT_SECONDS): Result {
-  carry.set(s, { deltas: {}, lines: [] });
-  // Manual rule 4: a player with no coins is out.
+/** Manual rule 4: a player with no coins is out. */
+function eliminateBroke(s: RoomState, now: number, events: GameEvent[], lines: string[]): RoomState {
   for (const p of active(s)) {
     if (points(p.coins) <= 0) {
       p.eliminated = true;
       events.push({ type: "eliminated", playerId: p.id });
-      result.lines.push(`${p.name} kehabisan koin dan tersingkir!`);
+      lines.push(`${p.name} kehabisan koin dan tersingkir!`);
       log(s, now, `${p.name} tersingkir.`);
     }
   }
+  return s;
+}
+
+function finishTurn(s: RoomState, now: number, events: GameEvent[], result: TurnResult, seconds = RESULT_SECONDS): Result {
+  carry.set(s, { deltas: {}, lines: [] });
+  eliminateBroke(s, now, events, result.lines);
   if (active(s).length <= 1) return { ok: true, state: endGame(s, now, "lastPlayer"), events };
   s.game!.stage = { kind: "result", result, deadline: now + sec(seconds) };
   return { ok: true, state: s, events };
@@ -521,7 +715,10 @@ export function advanceTime(state: RoomState, now: number, rng: Rng): { state: R
   const stage = g.stage;
   const current = currentPlayerId(s)!;
   let r: Result | null = null;
-  if (stage.kind === "question" && now >= stage.deadline) r = answer(s, current, null, now);
+  if (stage.kind === "question" && now >= stage.deadline) r = answer(s, stage.answererId, null, now);
+  else if (stage.kind === "quarkPick" && now >= stage.deadline) {
+    r = stage.revealed ? pickQuestion(s, current, 0, now) : skipPower(s, current, now);
+  } else if (stage.kind === "calcoWindow" && now >= stage.deadline) r = skipPower(s, stage.calcoId, now);
   else if (stage.kind === "drumQuestion" && now >= stage.deadline) r = resolveDrumQuestion(clone(s), now);
   else if (stage.kind === "choice" && now >= stage.deadline) r = choose(s, current, "decline", now, rng);
   else if (stage.kind === "result" && now >= stage.deadline) return { state: nextTurn(clone(s), now), events: [] };
@@ -557,9 +754,11 @@ export function actFor(state: RoomState, hostId: string, targetId: string, now: 
   const stage = state.game?.stage;
   if (!stage) return fail("NOT_ALLOWED", "Tiada tindakan diperlukan.");
   if (stage.kind === "drumQuestion") return answer(state, targetId, null, now);
+  if (stage.kind === "question" && stage.answererId === targetId) return answer(state, targetId, null, now);
+  if (stage.kind === "calcoWindow" && stage.calcoId === targetId) return skipPower(state, targetId, now);
   if (currentPlayerId(state) !== targetId) return fail("NOT_ALLOWED", "Bukan giliran pemain ini.");
   if (stage.kind === "roll") return roll(state, targetId, now, rng);
-  if (stage.kind === "question") return answer(state, targetId, null, now);
+  if (stage.kind === "quarkPick") return stage.revealed ? pickQuestion(state, targetId, 0, now) : skipPower(state, targetId, now);
   if (stage.kind === "choice") return choose(state, targetId, "decline", now, rng);
   return fail("NOT_ALLOWED", "Tiada tindakan diperlukan.");
 }

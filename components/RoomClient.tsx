@@ -46,8 +46,8 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
       if (e.roll > 0) setBoardRoll({ value: e.roll, key });
       setMove({ playerId: e.playerId, from: e.from, to: e.to, key });
     }
-    if (e.type === "drumCard") {
-      setDrumText(e.text);
+    if (e.type === "drumCard" || e.type === "power") {
+      setDrumText(e.type === "drumCard" ? `DRUM: ${e.text}` : `⚡ ${e.text}`);
       if (drumTimer.current) clearTimeout(drumTimer.current);
       drumTimer.current = setTimeout(() => setDrumText(null), 8000);
     }
@@ -226,7 +226,7 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
           serverNow={room.serverNow}
           move={move}
           roll={boardRoll}
-          drumText={drumText}
+          notice={drumText}
         />
       )}
       {state!.phase === "ended" && state!.game && <GameOver state={state!} me={me} send={room.send} onLeave={leave} />}

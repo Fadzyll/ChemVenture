@@ -2,7 +2,7 @@
  * Pure room/lobby rules. No network, no randomness, no clocks:
  * the server passes dice values and timestamps in, so everything here is unit-testable.
  */
-import { CHARACTER_IDS, isCharacterId, type CharacterId } from "./characters.ts";
+import { CHARACTER_IDS, POWER_USES, isCharacterId, type CharacterId } from "./characters.ts";
 import { START_COINS } from "./config.ts";
 import {
   DISCONNECT_GRACE_MS,
@@ -57,6 +57,7 @@ function newPlayer(id: string, name: string): Player {
     coins: { ...START_COINS },
     skipTurns: 0,
     eliminated: false,
+    powersLeft: POWER_USES,
   };
 }
 

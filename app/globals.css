@@ -398,3 +398,20 @@ button.option:disabled { cursor: default; opacity: 0.75; }
 }
 .winner img { height: 160px; }
 .crown { font-size: 2rem; }
+
+/* ---------- character powers ---------- */
+.power-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--panel-border);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+}
+.power-img { width: 52px; height: 72px; object-fit: contain; flex-shrink: 0; background: #f3e6c8; border-radius: 10px; padding: 2px; }
+.power-dots { display: inline-flex; gap: 4px; align-items: center; }
+.power-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); }
+.power-dot.on { background: #f062d0; border-color: #ffb3ec; box-shadow: 0 0 6px #f062d0; }
+.quark-option { align-items: flex-start; }

@@ -16,6 +16,12 @@ export const QUESTION_SECONDS = 30;
 export const DRUM_QUESTION_SECONDS = 30;
 export const CHOICE_SECONDS = 20;
 export const RESULT_SECONDS = 5;
+/** Quark deciding whether to use the power / which card to pick */
+export const QUARK_SECONDS = 20;
+/** How long Calco has to decide to block a reward */
+export const CALCO_SECONDS = 8;
+/** How many cards Quark gets to look at */
+export const QUARK_CHOICES = 3;
 
 /** Passing or landing on REAKSI. */
 export const REAKSI_BONUS: Partial<Coins> = { duplet: 1 };

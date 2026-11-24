@@ -119,6 +119,15 @@ export class ChemRoom extends Server<Env> {
       case "choose":
         result = game.choose(s, playerId, msg.option, now, rng);
         break;
+      case "usePower":
+        result = game.usePower(s, playerId, typeof msg.targetId === "string" ? msg.targetId : undefined, now);
+        break;
+      case "skipPower":
+        result = game.skipPower(s, playerId, now);
+        break;
+      case "pickQuestion":
+        result = game.pickQuestion(s, playerId, typeof msg.index === "number" ? msg.index : -1, now);
+        break;
       case "kick":
         result = rules.kick(s, playerId, String(msg.playerId));
         if (result.ok) this.closePlayer(String(msg.playerId), 4001, "Kicked by host");
