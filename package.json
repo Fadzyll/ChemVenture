@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev:server": "wrangler dev --config server/wrangler.jsonc",
+    "dev:server": "wrangler dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit && tsc --noEmit -p server",
     "test": "node --experimental-strip-types --test shared/*.test.ts",
-    "deploy:server": "wrangler deploy --config server/wrangler.jsonc"
+    "deploy:server": "wrangler deploy"
   },
   "dependencies": {
     "next": "^15.5.29",

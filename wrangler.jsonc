@@ -1,7 +1,9 @@
+// Cloudflare room server (the Next.js site is deployed separately on Vercel).
+// Lives at the repo root so a plain `npx wrangler deploy` works in Cloudflare Workers Builds.
 {
-  "$schema": "../node_modules/wrangler/config-schema.json",
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "chemventure-server",
-  "main": "index.ts",
+  "main": "server/index.ts",
   "compatibility_date": "2026-11-01",
   "durable_objects": {
     "bindings": [{ "name": "ChemRoom", "class_name": "ChemRoom" }]

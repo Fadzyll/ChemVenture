@@ -39,6 +39,12 @@ npm run typecheck
 
 ### 1. Room server → Cloudflare (free plan is enough)
 
+**From the dashboard (recommended):** Workers & Pages → Create → Import a repository →
+`Fadzyll/ChemVenture`, project name `chemventure-server`, build command empty, deploy command
+`npx wrangler deploy` (the default). The root `wrangler.jsonc` points at `server/index.ts`.
+
+**Or from your computer:**
+
 ```bash
 npx wrangler login
 npm run deploy:server
