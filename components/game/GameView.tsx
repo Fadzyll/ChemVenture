@@ -86,6 +86,14 @@ export default function GameView({ state, me, send, serverNow, move, roll, notic
 
   const [view, setView, has3D] = useBoardView();
   const deltas = stage.kind === "result" ? { values: stage.result.deltas, key: stage.deadline } : null;
+  // Once the token has finished walking, a card lifts off the right deck and flips over.
+  const drawnDeck =
+    stage.kind === "question" || stage.kind === "drumQuestion"
+      ? stage.question.deck
+      : stage.kind === "quarkPick"
+        ? stage.deck
+        : null;
+  const drawn = drawnDeck && !walking ? { deck: drawnDeck, key: g.turnNumber } : null;
 
   return (
     <div className="game-grid">
@@ -99,6 +107,7 @@ export default function GameView({ state, me, send, serverNow, move, roll, notic
               roll={roll}
               lastRoll={g.lastMove?.roll || null}
               deltas={deltas}
+              drawn={drawn}
             />
           ) : view === "2d" ? (
             <Board players={state.players} currentId={currentId} move={move} />

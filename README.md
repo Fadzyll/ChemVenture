@@ -24,9 +24,12 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
 - ✅ Phase 4: the 5 character powers, 2 uses each — Oxyra (+1 duplet), Ghoston (take 2 singlets),
   Quark (see 3 ION/KOVALEN cards and choose), Mystra (challenge another player to answer),
   Calco (block a correct ION/KOVALEN answer's reward, 8-second window)
-- ✅ Phase 5: 3D board (React Three Fiber): board art on a 3D slab, character standees that hop
-  square by square, a 3D dice that tumbles and lands on the server's roll, floating +/− coin
-  popups, cards that flip in, drag-to-rotate / scroll-to-zoom; automatic 2D fallback and a 2D/3D toggle
+- ✅ Phase 5: 3D board (React Three Fiber), fully modelled in code (no 3D asset files):
+  raised tiles with coloured label strips, a 3D object on every tile (bolts, molecule, magnifier,
+  drum, mushroom cloud, toxic cloud, starburst, clapperboard), animated atom, card decks where a
+  card lifts and flips when drawn, character standees that hop square by square, a tumbling dice
+  that lands on the server's roll, +/− coin popups, camera views (Isometrik / Atas / Sisi / Fokus),
+  automatic quality drop on slow devices, and a 2D board toggle / fallback
 - ⏳ Phase 6: polish (sound, more playtesting)
 
 ## Run locally

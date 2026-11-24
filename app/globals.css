@@ -467,3 +467,17 @@ button.option:disabled { cursor: default; opacity: 0.75; }
 @media (prefers-reduced-motion: reduce) {
   .stage-card, .token-active, .token3d-delta { animation: none; }
 }
+.cam-views {
+  position: absolute; top: 10px; left: 10px; z-index: 6;
+  display: flex; gap: 2px; padding: 3px;
+  border-radius: 999px;
+  background: rgba(10, 4, 30, 0.6);
+  border: 1px solid var(--panel-border);
+}
+.cam-view {
+  border: 0; background: transparent; color: var(--muted);
+  padding: 5px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+}
+.cam-view:hover { color: var(--text); }
+.cam-view.on { background: rgba(255, 255, 255, 0.16); color: var(--text); }
+@media (max-width: 700px) { .cam-view { padding: 4px 7px; font-size: 0.7rem; } }
