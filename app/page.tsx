@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import CodeInput from "@/components/CodeInput";
 import SoundControls from "@/components/SoundControls";
+import { LangToggle, useLang } from "@/lib/i18n";
 import { CHARACTER_IDS, CHARACTERS } from "@/shared/characters.ts";
 import { GAME_MINUTES } from "@/shared/config.ts";
+import { tx } from "@/shared/i18n.ts";
 import { CODE_LENGTH, generateRoomCode, isValidRoomCode } from "@/shared/roomCode.ts";
 import { MAX_PLAYERS, MIN_PLAYERS } from "@/shared/types.ts";
 
@@ -19,26 +21,57 @@ const CHIPS = [
 ];
 
 const STEPS = [
-  { title: "Cipta atau sertai bilik", text: "Hos mencipta bilik dan berkongsi kod 5 aksara. Rakan masukkan nama dan tekan Sedia." },
-  { title: "Baling untuk giliran", text: "Skor tertinggi bermula dan memilih karakter dahulu. Jika seri, baling semula dan tambah skor." },
-  { title: "Gerak & jawab", text: "Bermula di REAKSI. Ikut arahan petak: jawab soalan ion, kovalen dan asas untuk kumpul koin." },
-  { title: "Guna kuasa", text: "Setiap karakter ada kuasa istimewa — boleh digunakan 2 kali sahaja sepanjang permainan." },
-  { title: "Kumpul mata", text: `Kehabisan koin = tersingkir. Selepas ${GAME_MINUTES} minit, mata koin tertinggi menang!` },
+  {
+    title: tx("Create or join a room", "Cipta atau sertai bilik"),
+    text: tx(
+      "The host creates a room and shares the 5-letter code. Friends enter a name and press Ready.",
+      "Hos mencipta bilik dan berkongsi kod 5 aksara. Rakan masukkan nama dan tekan Sedia.",
+    ),
+  },
+  {
+    title: tx("Roll for turn order", "Baling untuk giliran"),
+    text: tx(
+      "The highest roll goes first and picks a character first. Ties roll again and add to their score.",
+      "Skor tertinggi bermula dan memilih karakter dahulu. Jika seri, baling semula dan tambah skor.",
+    ),
+  },
+  {
+    title: tx("Move & answer", "Gerak & jawab"),
+    text: tx(
+      "Start on REACTION. Follow each square: answer ionic, covalent and basic questions to collect coins.",
+      "Bermula di REAKSI. Ikut arahan petak: jawab soalan ion, kovalen dan asas untuk kumpul koin.",
+    ),
+  },
+  {
+    title: tx("Use your power", "Guna kuasa"),
+    text: tx(
+      "Every character has a special power — but it can only be used twice per game.",
+      "Setiap karakter ada kuasa istimewa — boleh digunakan 2 kali sahaja sepanjang permainan.",
+    ),
+  },
+  {
+    title: tx("Collect points", "Kumpul mata"),
+    text: tx(
+      `Run out of coins and you're out. After ${GAME_MINUTES} minutes, the most coin points wins!`,
+      `Kehabisan koin = tersingkir. Selepas ${GAME_MINUTES} minit, mata koin tertinggi menang!`,
+    ),
+  },
 ];
 
 const SQUARES = [
-  { icon: "⚡", name: "ION", color: "#ff8a1f", text: "Jawab satu soalan ikatan ion." },
-  { icon: "🧪", name: "KOVALEN", color: "#ffd21f", text: "Jawab satu soalan ikatan kovalen." },
-  { icon: "🔍", name: "ASAS", color: "#22a855", text: "Jawab satu soalan asas ion atau kovalen." },
-  { icon: "🥁", name: "DRUM", color: "#ef3b2d", text: "Ganjaran, hukuman, atau soalan untuk semua pemain." },
-  { icon: "🎬", name: "REAKSI", color: "#f4f1ff", text: "Petak permulaan. +1 koin duplet setiap kali melepasinya." },
-  { icon: "💥", name: "RADIKAL", color: "#2bb3ff", text: "Rehat satu pusingan, atau bayar untuk keluar." },
-  { icon: "☢️", name: "GANGGUAN", color: "#84cc16", text: "Pergi ke RADIKAL, atau bayar untuk kekal." },
-  { icon: "✴️", name: "NEUTRAL", color: "#ffd84d", text: "Tiada soalan atau ganjaran — singgah sahaja." },
+  { icon: "⚡", name: tx("ION", "ION"), color: "#ff8a1f", text: tx("Answer one ionic bond question.", "Jawab satu soalan ikatan ion.") },
+  { icon: "🧪", name: tx("COVALENT", "KOVALEN"), color: "#ffd21f", text: tx("Answer one covalent bond question.", "Jawab satu soalan ikatan kovalen.") },
+  { icon: "🔍", name: tx("BASICS", "ASAS"), color: "#22a855", text: tx("Answer one basic ionic or covalent question.", "Jawab satu soalan asas ion atau kovalen.") },
+  { icon: "🥁", name: tx("DRUM", "DRUM"), color: "#ef3b2d", text: tx("A reward, a penalty, or a question for everyone.", "Ganjaran, hukuman, atau soalan untuk semua pemain.") },
+  { icon: "🎬", name: tx("REACTION", "REAKSI"), color: "#f4f1ff", text: tx("Starting square. +1 duplet coin every time you pass it.", "Petak permulaan. +1 koin duplet setiap kali melepasinya.") },
+  { icon: "💥", name: tx("RADICAL", "RADIKAL"), color: "#2bb3ff", text: tx("Sit out one round, or pay to leave.", "Rehat satu pusingan, atau bayar untuk keluar.") },
+  { icon: "☢️", name: tx("DISRUPTION", "GANGGUAN"), color: "#84cc16", text: tx("Go to RADICAL, or pay to stay.", "Pergi ke RADIKAL, atau bayar untuk kekal.") },
+  { icon: "✴️", name: tx("NEUTRAL", "NEUTRAL"), color: "#ffd84d", text: tx("No question or reward — just visiting.", "Tiada soalan atau ganjaran — singgah sahaja.") },
 ];
 
 export default function Landing() {
   const router = useRouter();
+  const { t, tr } = useLang();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const joinBtn = useRef<HTMLButtonElement>(null);
@@ -47,7 +80,7 @@ export default function Landing() {
   const joinRoom = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!isValidRoomCode(code)) {
-      setError(`Masukkan kod ${CODE_LENGTH} aksara.`);
+      setError(t(`Enter the ${CODE_LENGTH}-letter code.`, `Masukkan kod ${CODE_LENGTH} aksara.`));
       return;
     }
     router.push(`/room/${code}`);
@@ -64,34 +97,44 @@ export default function Landing() {
           <span>ChemVenture</span>
         </a>
         <div className="lp-nav-links">
-          <a href="#karakter">Karakter</a>
-          <a href="#cara">Cara bermain</a>
-          <a href="#petak">Petak</a>
+          <a href="#karakter">{t("Characters", "Karakter")}</a>
+          <a href="#cara">{t("How to play", "Cara bermain")}</a>
+          <a href="#petak">{t("Squares", "Petak")}</a>
         </div>
-        <SoundControls />
+        <div className="top-controls lp-nav-controls">
+          <LangToggle />
+          <SoundControls />
+        </div>
       </nav>
 
       {/* ---------------- hero ---------------- */}
       <header className="lp-hero">
         <div className="lp-hero-copy">
           <span className="lp-eyebrow">
-            <span className="lp-dot" /> Permainan papan kimia · {MIN_PLAYERS}–{MAX_PLAYERS} pemain
+            <span className="lp-dot" /> {t("Chemistry board game", "Permainan papan kimia")} · {MIN_PLAYERS}–{MAX_PLAYERS}{" "}
+            {t("players", "pemain")}
           </span>
           <h1 className="lp-title">
             <span>CHEMVENTURE</span>
             <small>The Siege of Bonds</small>
           </h1>
           <p className="lp-lead">
-            Baling dadu, kuasai <b>ikatan ion</b> dan <b>ikatan kovalen</b>, dan kumpul koin paling banyak bersama
-            rakan — terus dari pelayar, di telefon atau komputer.
+            {t("Roll the dice, master ", "Baling dadu, kuasai ")}
+            <b>{t("ionic bonds", "ikatan ion")}</b>
+            {t(" and ", " dan ")}
+            <b>{t("covalent bonds", "ikatan kovalen")}</b>
+            {t(
+              ", and collect the most coins with your friends — right in your browser, on a phone or computer.",
+              ", dan kumpul koin paling banyak bersama rakan — terus dari pelayar, di telefon atau komputer.",
+            )}
           </p>
 
           <div className="lp-actions">
             <button className="btn btn-primary btn-big lp-create" onClick={createRoom}>
-              <span aria-hidden>✨</span> Cipta Bilik
+              <span aria-hidden>✨</span> {t("Create Room", "Cipta Bilik")}
             </button>
             <div className="lp-or">
-              <span>atau sertai dengan kod</span>
+              <span>{t("or join with a code", "atau sertai dengan kod")}</span>
             </div>
             <form className="lp-join" onSubmit={joinRoom}>
               <CodeInput
@@ -104,11 +147,11 @@ export default function Landing() {
                 onComplete={() => joinBtn.current?.focus()}
               />
               <button ref={joinBtn} className="btn btn-pink btn-big" type="submit" disabled={code.length < CODE_LENGTH}>
-                Sertai →
+                {t("Join →", "Sertai →")}
               </button>
             </form>
             {error && <div className="alert small">{error}</div>}
-            <p className="lp-note">Tiada akaun diperlukan · Percuma · Papan 3D</p>
+            <p className="lp-note">{t("No account needed · Free · 3D board", "Tiada akaun diperlukan · Percuma · Papan 3D")}</p>
           </div>
         </div>
 
@@ -128,33 +171,38 @@ export default function Landing() {
       </header>
 
       {/* ---------------- stats ---------------- */}
-      <section className="lp-stats" aria-label="Ringkasan">
+      <section className="lp-stats" aria-label={t("Summary", "Ringkasan")}>
         <div>
           <strong>
             {MIN_PLAYERS}–{MAX_PLAYERS}
           </strong>
-          <span>pemain serentak</span>
+          <span>{t("players at once", "pemain serentak")}</span>
         </div>
         <div>
           <strong>{GAME_MINUTES}</strong>
-          <span>minit setiap permainan</span>
+          <span>{t("minutes per game", "minit setiap permainan")}</span>
         </div>
         <div>
           <strong>5</strong>
-          <span>karakter berkuasa</span>
+          <span>{t("characters with powers", "karakter berkuasa")}</span>
         </div>
         <div>
           <strong>46</strong>
-          <span>kad soalan & drum</span>
+          <span>{t("question & drum cards", "kad soalan & drum")}</span>
         </div>
       </section>
 
       {/* ---------------- characters ---------------- */}
       <section className="lp-section" id="karakter">
         <div className="lp-section-head">
-          <span className="lp-kicker">Karakter</span>
-          <h2>Pilih wira anda</h2>
-          <p>Setiap karakter ada satu kuasa istimewa yang boleh mengubah permainan — gunakan dengan bijak, hanya 2 kali!</p>
+          <span className="lp-kicker">{t("Characters", "Karakter")}</span>
+          <h2>{t("Choose your hero", "Pilih wira anda")}</h2>
+          <p>
+            {t(
+              "Each character has one special power that can turn the game — use it wisely, only twice!",
+              "Setiap karakter ada satu kuasa istimewa yang boleh mengubah permainan — gunakan dengan bijak, hanya 2 kali!",
+            )}
+          </p>
         </div>
         <div className="lp-chars">
           {CHARACTER_IDS.map((id) => {
@@ -166,7 +214,7 @@ export default function Landing() {
                   <img src={c.image} alt={c.name} loading="lazy" />
                 </div>
                 <h3>{c.name}</h3>
-                <p>{c.power}</p>
+                <p>{tr({ en: c.powerEn, ms: c.power })}</p>
                 <span className="lp-char-uses">⚡ ×2</span>
               </article>
             );
@@ -177,15 +225,15 @@ export default function Landing() {
       {/* ---------------- how to play ---------------- */}
       <section className="lp-section" id="cara">
         <div className="lp-section-head">
-          <span className="lp-kicker">Cara bermain</span>
-          <h2>Lima langkah ke kemenangan</h2>
+          <span className="lp-kicker">{t("How to play", "Cara bermain")}</span>
+          <h2>{t("Five steps to victory", "Lima langkah ke kemenangan")}</h2>
         </div>
         <ol className="lp-steps">
           {STEPS.map((s, i) => (
-            <li key={s.title}>
+            <li key={i}>
               <span className="lp-step-num">{i + 1}</span>
-              <h3>{s.title}</h3>
-              <p>{s.text}</p>
+              <h3>{tr(s.title)}</h3>
+              <p>{tr(s.text)}</p>
             </li>
           ))}
         </ol>
@@ -194,19 +242,19 @@ export default function Landing() {
       {/* ---------------- squares ---------------- */}
       <section className="lp-section" id="petak">
         <div className="lp-section-head">
-          <span className="lp-kicker">Petak</span>
-          <h2>Kenali papan</h2>
-          <p>22 petak, 8 jenis. Ikut arahan petak yang anda jejak.</p>
+          <span className="lp-kicker">{t("Squares", "Petak")}</span>
+          <h2>{t("Know the board", "Kenali papan")}</h2>
+          <p>{t("22 squares, 8 types. Follow the square you land on.", "22 petak, 8 jenis. Ikut arahan petak yang anda jejak.")}</p>
         </div>
         <div className="lp-squares">
           {SQUARES.map((s) => (
-            <div key={s.name} className="lp-square" style={{ "--c": s.color } as React.CSSProperties}>
+            <div key={s.name.en} className="lp-square" style={{ "--c": s.color } as React.CSSProperties}>
               <span className="lp-square-icon" aria-hidden>
                 {s.icon}
               </span>
               <div>
-                <strong>{s.name}</strong>
-                <p>{s.text}</p>
+                <strong>{tr(s.name)}</strong>
+                <p>{tr(s.text)}</p>
               </div>
             </div>
           ))}
@@ -215,14 +263,16 @@ export default function Landing() {
 
       {/* ---------------- final CTA ---------------- */}
       <section className="lp-cta">
-        <h2>Sedia untuk bertarung dengan ikatan?</h2>
-        <p>Cipta bilik dalam satu klik dan kongsi kod dengan rakan sekelas anda.</p>
+        <h2>{t("Ready to battle with bonds?", "Sedia untuk bertarung dengan ikatan?")}</h2>
+        <p>{t("Create a room in one click and share the code with your classmates.", "Cipta bilik dalam satu klik dan kongsi kod dengan rakan sekelas anda.")}</p>
         <button className="btn btn-primary btn-big" onClick={createRoom}>
-          ✨ Cipta Bilik Sekarang
+          ✨ {t("Create a Room Now", "Cipta Bilik Sekarang")}
         </button>
       </section>
 
-      <footer className="lp-footer">ChemVenture: The Siege of Bonds · Ikatan Ion &amp; Kovalen</footer>
+      <footer className="lp-footer">
+        ChemVenture: The Siege of Bonds · {t("Ionic & Covalent Bonds", "Ikatan Ion & Kovalen")}
+      </footer>
     </div>
   );
 }

@@ -8,6 +8,7 @@
  * which wake the room up exactly when needed.
  */
 import { routePartykitRequest, Server, type Connection, type WSMessage } from "partyserver";
+import { tx, type Text } from "../shared/i18n.ts";
 import * as rules from "../shared/rules.ts";
 import type { ClientMessage, ErrorCode, GameEvent, RoomState, ServerMessage } from "../shared/types.ts";
 import * as game from "./game.ts";
@@ -61,20 +62,20 @@ export class ChemRoom extends Server<Env> {
   }
 
   async onMessage(conn: Connection<ConnState>, raw: WSMessage) {
-    if (typeof raw !== "string" || raw.length > MAX_MESSAGE_BYTES) return this.error(conn, "BAD_MESSAGE", "Mesej tidak sah.");
+    if (typeof raw !== "string" || raw.length > MAX_MESSAGE_BYTES) return this.error(conn, "BAD_MESSAGE", tx("Invalid message.", "Mesej tidak sah."));
     let msg: ClientMessage;
     try {
       msg = JSON.parse(raw);
     } catch {
-      return this.error(conn, "BAD_MESSAGE", "Mesej tidak sah.");
+      return this.error(conn, "BAD_MESSAGE", tx("Invalid message.", "Mesej tidak sah."));
     }
-    if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return this.error(conn, "BAD_MESSAGE", "Mesej tidak sah.");
+    if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return this.error(conn, "BAD_MESSAGE", tx("Invalid message.", "Mesej tidak sah."));
     const now = Date.now();
 
     // create/join bind the socket to a player id; everything else needs that binding.
     if (msg.type === "create" || msg.type === "join") {
       if (typeof msg.playerId !== "string" || msg.playerId.length < 8 || msg.playerId.length > 64) {
-        return this.error(conn, "BAD_MESSAGE", "ID pemain tidak sah.");
+        return this.error(conn, "BAD_MESSAGE", tx("Invalid player ID.", "ID pemain tidak sah."));
       }
       const result =
         msg.type === "create"
@@ -93,7 +94,7 @@ export class ChemRoom extends Server<Env> {
     }
 
     const playerId = conn.state?.playerId;
-    if (!playerId) return this.error(conn, "NOT_JOINED", "Anda belum menyertai bilik.");
+    if (!playerId) return this.error(conn, "NOT_JOINED", tx("You haven't joined this room.", "Anda belum menyertai bilik."));
 
     let result: rules.Result;
     const s = this.state;
@@ -150,7 +151,7 @@ export class ChemRoom extends Server<Env> {
         if (result.ok) conn.setState(null);
         break;
       default:
-        return this.error(conn, "BAD_MESSAGE", "Jenis mesej tidak dikenali.");
+        return this.error(conn, "BAD_MESSAGE", tx("Unknown message type.", "Jenis mesej tidak dikenali."));
     }
     if (!result.ok) return this.error(conn, result.code, result.message);
     await this.commit(result.state, result.events);
@@ -189,7 +190,7 @@ export class ChemRoom extends Server<Env> {
   private closePlayer(playerId: string, code: number, reason: string) {
     for (const c of this.getConnections<ConnState>()) {
       if (c.state?.playerId === playerId) {
-        this.send(c, { type: "error", code: "NOT_JOINED", message: "Anda telah dikeluarkan oleh hos." });
+        this.send(c, { type: "error", code: "NOT_JOINED", message: tx("You were removed by the host.", "Anda telah dikeluarkan oleh hos.") });
         c.setState(null);
         c.close(code, reason);
       }
@@ -202,7 +203,7 @@ export class ChemRoom extends Server<Env> {
   private broadcastMsg(msg: ServerMessage) {
     this.broadcast(JSON.stringify(msg));
   }
-  private error(conn: Connection, code: ErrorCode, message: string) {
+  private error(conn: Connection, code: ErrorCode, message: Text) {
     this.send(conn, { type: "error", code, message });
   }
 }

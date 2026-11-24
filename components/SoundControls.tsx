@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { useLang } from "@/lib/i18n";
 import { sound } from "@/lib/sound";
 
 /**
@@ -40,27 +41,28 @@ function useSoundSettings() {
 /** Two small toggles: music and sound effects. */
 export default function SoundControls() {
   const { music, sfx } = useSoundSettings();
+  const { t } = useLang();
   return (
-    <div className="sound-controls" role="group" aria-label="Bunyi">
+    <div className="sound-controls" role="group" aria-label={t("Sound", "Bunyi")}>
       <button
         type="button"
         className={`sound-btn ${music ? "on" : ""}`}
         onClick={() => sound.setMusic(!music)}
         aria-pressed={music}
-        title={music ? "Matikan muzik" : "Hidupkan muzik"}
+        title={music ? t("Turn music off", "Matikan muzik") : t("Turn music on", "Hidupkan muzik")}
       >
         <span aria-hidden>{music ? "🎵" : "🔇"}</span>
-        <span className="sound-label">Muzik</span>
+        <span className="sound-label">{t("Music", "Muzik")}</span>
       </button>
       <button
         type="button"
         className={`sound-btn ${sfx ? "on" : ""}`}
         onClick={() => sound.setSfx(!sfx)}
         aria-pressed={sfx}
-        title={sfx ? "Matikan kesan bunyi" : "Hidupkan kesan bunyi"}
+        title={sfx ? t("Turn sound effects off", "Matikan kesan bunyi") : t("Turn sound effects on", "Hidupkan kesan bunyi")}
       >
         <span aria-hidden>{sfx ? "🔊" : "🔈"}</span>
-        <span className="sound-label">Bunyi</span>
+        <span className="sound-label">{t("Sound", "Bunyi")}</span>
       </button>
     </div>
   );

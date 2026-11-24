@@ -4,6 +4,7 @@
  */
 import { CHARACTER_IDS, POWER_USES, isCharacterId, type CharacterId } from "./characters.ts";
 import { START_COINS } from "./config.ts";
+import { tx, type Text } from "./i18n.ts";
 import {
   DISCONNECT_GRACE_MS,
   MAX_PLAYERS,
@@ -17,9 +18,9 @@ import {
 
 export type Result =
   | { ok: true; state: RoomState; events: GameEvent[] }
-  | { ok: false; code: ErrorCode; message: string };
+  | { ok: false; code: ErrorCode; message: Text };
 
-const fail = (code: ErrorCode, message: string): Result => ({ ok: false, code, message });
+const fail = (code: ErrorCode, message: Text): Result => ({ ok: false, code, message });
 const ok = (state: RoomState, events: GameEvent[] = []): Result => ({ ok: true, state, events });
 
 export function createInitialState(code: string): RoomState {
@@ -68,10 +69,10 @@ const findPlayer = (s: RoomState, id: string) => s.players.find((p) => p.id === 
 export function createRoom(state: RoomState, playerId: string, rawName: unknown): Result {
   if (state.created) {
     if (findPlayer(state, playerId)) return joinRoom(state, playerId, rawName);
-    return fail("ROOM_EXISTS", "Kod bilik ini sudah digunakan.");
+    return fail("ROOM_EXISTS", tx("This room code is already in use.", "Kod bilik ini sudah digunakan."));
   }
   const name = cleanName(rawName);
-  if (!name) return fail("NAME_INVALID", "Sila masukkan nama.");
+  if (!name) return fail("NAME_INVALID", tx("Please enter a name.", "Sila masukkan nama."));
   const s = createInitialState(state.code);
   s.created = true;
   s.hostId = playerId;
@@ -80,7 +81,7 @@ export function createRoom(state: RoomState, playerId: string, rawName: unknown)
 }
 
 export function joinRoom(state: RoomState, playerId: string, rawName: unknown): Result {
-  if (!state.created) return fail("ROOM_NOT_FOUND", "Bilik tidak dijumpai.");
+  if (!state.created) return fail("ROOM_NOT_FOUND", tx("Room not found.", "Bilik tidak dijumpai."));
   const name = cleanName(rawName);
   const existing = findPlayer(state, playerId);
 
@@ -94,10 +95,10 @@ export function joinRoom(state: RoomState, playerId: string, rawName: unknown): 
     return ok(s);
   }
 
-  if (state.phase !== "lobby") return fail("GAME_STARTED", "Permainan sudah bermula.");
-  if (state.players.length >= MAX_PLAYERS) return fail("ROOM_FULL", "Bilik sudah penuh (5 pemain).");
-  if (!name) return fail("NAME_INVALID", "Sila masukkan nama.");
-  if (nameTaken(state, name, playerId)) return fail("NAME_TAKEN", "Nama ini sudah digunakan.");
+  if (state.phase !== "lobby") return fail("GAME_STARTED", tx("The game has already started.", "Permainan sudah bermula."));
+  if (state.players.length >= MAX_PLAYERS) return fail("ROOM_FULL", tx("The room is full (5 players).", "Bilik sudah penuh (5 pemain)."));
+  if (!name) return fail("NAME_INVALID", tx("Please enter a name.", "Sila masukkan nama."));
+  if (nameTaken(state, name, playerId)) return fail("NAME_TAKEN", tx("That name is already taken.", "Nama ini sudah digunakan."));
 
   const s = clone(state);
   s.players.push(newPlayer(playerId, name));
@@ -111,10 +112,10 @@ function nameTaken(s: RoomState, name: string, exceptId: string) {
 }
 
 export function setReady(state: RoomState, playerId: string, ready: boolean): Result {
-  if (state.phase !== "lobby") return fail("NOT_ALLOWED", "Permainan sudah bermula.");
+  if (state.phase !== "lobby") return fail("NOT_ALLOWED", tx("The game has already started.", "Permainan sudah bermula."));
   const s = clone(state);
   const p = findPlayer(s, playerId);
-  if (!p) return fail("NOT_JOINED", "Anda belum menyertai bilik.");
+  if (!p) return fail("NOT_JOINED", tx("You haven't joined this room.", "Anda belum menyertai bilik."));
   p.ready = ready;
   return ok(s);
 }
@@ -128,9 +129,9 @@ export function canStart(state: RoomState): boolean {
 }
 
 export function startGame(state: RoomState, playerId: string): Result {
-  if (state.hostId !== playerId) return fail("NOT_HOST", "Hanya hos boleh memulakan permainan.");
+  if (state.hostId !== playerId) return fail("NOT_HOST", tx("Only the host can start the game.", "Hanya hos boleh memulakan permainan."));
   if (!canStart(state)) {
-    return fail("NOT_ALLOWED", `Perlukan ${MIN_PLAYERS}–${MAX_PLAYERS} pemain dan semua mesti sedia.`);
+    return fail("NOT_ALLOWED", tx(`Needs ${MIN_PLAYERS}–${MAX_PLAYERS} players, all ready.`, `Perlukan ${MIN_PLAYERS}–${MAX_PLAYERS} pemain dan semua mesti sedia.`));
   }
   const s = clone(state);
   s.phase = "rolling";
@@ -153,12 +154,12 @@ export function startGame(state: RoomState, playerId: string): Result {
  * We repeat until every total is unique, which gives a full turn order.
  */
 export function roll(state: RoomState, playerId: string, value: number): Result {
-  if (state.phase !== "rolling") return fail("NOT_ALLOWED", "Bukan masa membaling dadu.");
-  if (!Number.isInteger(value) || value < 1 || value > 6) return fail("BAD_MESSAGE", "Nilai dadu tidak sah.");
+  if (state.phase !== "rolling") return fail("NOT_ALLOWED", tx("It's not time to roll.", "Bukan masa membaling dadu."));
+  if (!Number.isInteger(value) || value < 1 || value > 6) return fail("BAD_MESSAGE", tx("Invalid dice value.", "Nilai dadu tidak sah."));
   const s = clone(state);
   const p = findPlayer(s, playerId);
-  if (!p) return fail("NOT_JOINED", "Anda belum menyertai bilik.");
-  if (!p.mustRoll) return fail("NOT_YOUR_TURN", "Tunggu pemain lain membaling dadu.");
+  if (!p) return fail("NOT_JOINED", tx("You haven't joined this room.", "Anda belum menyertai bilik."));
+  if (!p.mustRoll) return fail("NOT_YOUR_TURN", tx("Wait for the other players to roll.", "Tunggu pemain lain membaling dadu."));
 
   p.rollTotal += value;
   p.rolls.push(value);
@@ -195,10 +196,10 @@ export function currentPicker(state: RoomState): string | null {
 }
 
 export function pickCharacter(state: RoomState, playerId: string, character: unknown): Result {
-  if (state.phase !== "picking") return fail("NOT_ALLOWED", "Bukan masa memilih karakter.");
-  if (!isCharacterId(character)) return fail("BAD_MESSAGE", "Karakter tidak sah.");
-  if (currentPicker(state) !== playerId) return fail("NOT_YOUR_TURN", "Belum giliran anda memilih.");
-  if (takenCharacters(state).includes(character)) return fail("CHARACTER_TAKEN", "Karakter sudah dipilih.");
+  if (state.phase !== "picking") return fail("NOT_ALLOWED", tx("It's not time to pick a character.", "Bukan masa memilih karakter."));
+  if (!isCharacterId(character)) return fail("BAD_MESSAGE", tx("Invalid character.", "Karakter tidak sah."));
+  if (currentPicker(state) !== playerId) return fail("NOT_YOUR_TURN", tx("It's not your turn to pick yet.", "Belum giliran anda memilih."));
+  if (takenCharacters(state).includes(character)) return fail("CHARACTER_TAKEN", tx("That character is already taken.", "Karakter sudah dipilih."));
 
   const s = clone(state);
   findPlayer(s, playerId)!.character = character;
@@ -214,22 +215,22 @@ export function actFor(
   targetId: string,
   diceValue: number,
 ): Result {
-  if (state.hostId !== hostId) return fail("NOT_HOST", "Hanya hos boleh berbuat demikian.");
+  if (state.hostId !== hostId) return fail("NOT_HOST", tx("Only the host can do that.", "Hanya hos boleh berbuat demikian."));
   const target = findPlayer(state, targetId);
-  if (!target) return fail("NOT_JOINED", "Pemain tidak dijumpai.");
-  if (target.connected) return fail("NOT_ALLOWED", "Pemain ini masih bersambung.");
+  if (!target) return fail("NOT_JOINED", tx("Player not found.", "Pemain tidak dijumpai."));
+  if (target.connected) return fail("NOT_ALLOWED", tx("That player is still connected.", "Pemain ini masih bersambung."));
   if (state.phase === "rolling") return roll(state, targetId, diceValue);
   if (state.phase === "picking") {
     const free = CHARACTER_IDS.find((c) => !takenCharacters(state).includes(c));
     return pickCharacter(state, targetId, free);
   }
-  return fail("NOT_ALLOWED", "Tiada tindakan diperlukan.");
+  return fail("NOT_ALLOWED", tx("No action needed.", "Tiada tindakan diperlukan."));
 }
 
 /** After a game ends, the host can bring everyone back to the lobby with the same players. */
 export function playAgain(state: RoomState, playerId: string): Result {
-  if (state.hostId !== playerId) return fail("NOT_HOST", "Hanya hos boleh memulakan semula.");
-  if (state.phase !== "ended") return fail("NOT_ALLOWED", "Permainan belum tamat.");
+  if (state.hostId !== playerId) return fail("NOT_HOST", tx("Only the host can restart.", "Hanya hos boleh memulakan semula."));
+  if (state.phase !== "ended") return fail("NOT_ALLOWED", tx("The game hasn't ended yet.", "Permainan belum tamat."));
   const s = clone(state);
   s.phase = "lobby";
   s.game = null;
@@ -244,15 +245,15 @@ export function playAgain(state: RoomState, playerId: string): Result {
 
 /** Leaving is only a real "leave" in the lobby; in-game it just marks the player disconnected. */
 export function leaveRoom(state: RoomState, playerId: string, now: number): Result {
-  if (!findPlayer(state, playerId)) return fail("NOT_JOINED", "Anda belum menyertai bilik.");
+  if (!findPlayer(state, playerId)) return fail("NOT_JOINED", tx("You haven't joined this room.", "Anda belum menyertai bilik."));
   if (state.phase === "lobby") return ok(removePlayer(state, playerId));
   return ok(markDisconnected(state, playerId, now));
 }
 
 export function kick(state: RoomState, hostId: string, targetId: string): Result {
-  if (state.hostId !== hostId) return fail("NOT_HOST", "Hanya hos boleh mengeluarkan pemain.");
-  if (state.phase !== "lobby") return fail("NOT_ALLOWED", "Hanya boleh dalam lobi.");
-  if (targetId === hostId || !findPlayer(state, targetId)) return fail("NOT_ALLOWED", "Tidak boleh.");
+  if (state.hostId !== hostId) return fail("NOT_HOST", tx("Only the host can remove players.", "Hanya hos boleh mengeluarkan pemain."));
+  if (state.phase !== "lobby") return fail("NOT_ALLOWED", tx("Only allowed in the lobby.", "Hanya boleh dalam lobi."));
+  if (targetId === hostId || !findPlayer(state, targetId)) return fail("NOT_ALLOWED", tx("Not allowed.", "Tidak boleh."));
   return ok(removePlayer(state, targetId), [{ type: "kicked", playerId: targetId }]);
 }
 

@@ -1,5 +1,6 @@
 import type { CharacterId } from "./characters.ts";
 import type { Coins } from "./config.ts";
+import type { Text } from "./i18n.ts";
 
 export const MAX_PLAYERS = 5;
 export const MIN_PLAYERS = 2;
@@ -44,8 +45,8 @@ export type DeckId = "asas" | "ion" | "kovalen" | "drum";
 export interface PublicQuestion {
   id: string;
   deck: DeckId;
-  prompt: string;
-  options: string[];
+  prompt: Text;
+  options: Text[];
 }
 
 export type Stage =
@@ -68,8 +69,10 @@ export type Stage =
 
 export interface TurnResult {
   playerId: string;
-  title: string;
-  lines: string[];
+  title: Text;
+  lines: Text[];
+  /** Calco blocked the reward */
+  blocked?: boolean;
   question?: PublicQuestion;
   correctIndex?: number;
   /** player id → option index they picked (null = no answer / time out) */
@@ -80,7 +83,7 @@ export interface TurnResult {
 
 export interface LogEntry {
   at: number;
-  text: string;
+  text: Text;
 }
 
 export interface GameState {
@@ -158,12 +161,12 @@ export type GameEvent =
   | { type: "picked"; playerId: string; character: CharacterId }
   | { type: "kicked"; playerId: string }
   | { type: "moved"; playerId: string; from: number; to: number; roll: number; passedReaksi: boolean }
-  | { type: "drumCard"; playerId: string; text: string }
-  | { type: "power"; playerId: string; text: string }
+  | { type: "drumCard"; playerId: string; text: Text }
+  | { type: "power"; playerId: string; text: Text }
   | { type: "eliminated"; playerId: string };
 
 export type ServerMessage =
   /** `now` is the server clock, so screens can show accurate countdowns */
   | { type: "state"; state: RoomState; now: number }
   | { type: "event"; event: GameEvent }
-  | { type: "error"; code: ErrorCode; message: string };
+  | { type: "error"; code: ErrorCode; message: Text };

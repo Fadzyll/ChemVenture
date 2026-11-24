@@ -41,7 +41,7 @@ export default function Board({
   return (
     <div className="board" style={{ aspectRatio: BOARD_IMAGE.aspect }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="board-img" src={BOARD_IMAGE.src} alt="Papan ChemVenture" draggable={false} />
+      <img className="board-img" src={BOARD_IMAGE.src} alt="ChemVenture board" draggable={false} />
       {currentSquare && <div className="board-highlight" style={cellStyle(currentSquare.col, currentSquare.row)} />}
       {[...bySquare.entries()].map(([pos, group]) => {
         const sq = BOARD[pos];

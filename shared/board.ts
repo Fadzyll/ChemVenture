@@ -62,3 +62,15 @@ export const SQUARE_COLOR: Record<SquareType, string> = {
   neutral: "#ffd84d",
   gangguan: "#5d7d3a",
 };
+
+/** Square names in both languages (the printed board uses the Malay names). */
+export const SQUARE_NAME: Record<SquareType, import("./i18n.ts").Text> = {
+  reaksi: { en: "REACTION", ms: "REAKSI" },
+  asas: { en: "BASICS", ms: "ASAS" },
+  ion: { en: "ION", ms: "ION" },
+  kovalen: { en: "COVALENT", ms: "KOVALEN" },
+  drum: { en: "DRUM", ms: "DRUM" },
+  radikal: { en: "RADICAL", ms: "RADIKAL" },
+  neutral: { en: "NEUTRAL", ms: "NEUTRAL" },
+  gangguan: { en: "DISRUPTION", ms: "GANGGUAN" },
+};

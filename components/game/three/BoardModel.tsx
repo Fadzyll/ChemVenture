@@ -4,7 +4,8 @@ import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { BOARD, SQUARE_COLOR, type Square } from "@/shared/board.ts";
+import { BOARD, SQUARE_COLOR, SQUARE_NAME, type Square } from "@/shared/board.ts";
+import type { Lang } from "@/shared/i18n.ts";
 import type { DeckId } from "@/shared/types.ts";
 import { TileIcon } from "./TileIcons";
 import { cardFaceTexture, centerTexture, deckTexture, stripTexture, textTexture } from "./textures";
@@ -44,16 +45,6 @@ function innerSide(sq: Square): "top" | "bottom" | "left" | "right" | null {
   return "left";
 }
 
-const LABEL: Record<string, string> = {
-  ion: "ION",
-  kovalen: "KOVALEN",
-  asas: "ASAS",
-  drum: "DRUM",
-  reaksi: "REAKSI",
-  radikal: "RADIKAL",
-  neutral: "NEUTRAL",
-  gangguan: "GANGGUAN",
-};
 const TEXT_ON: Record<string, string> = { kovalen: "#3a2a00", ion: "#ffffff", asas: "#ffffff", drum: "#ffffff" };
 
 export const DECK_COLOR: Record<DeckId, string> = {
@@ -73,7 +64,7 @@ export const DECK_POS: Record<DeckId, [number, number]> = {
 
 // ---------------------------------------------------------------- board
 
-export function BoardModel({ drawn }: { drawn: { deck: DeckId; key: number } | null }) {
+export function BoardModel({ drawn, lang }: { drawn: { deck: DeckId; key: number } | null; lang: Lang }) {
   const center = useMemo(() => centerTexture(), []);
   const title = useMemo(
     () =>
@@ -107,27 +98,28 @@ export function BoardModel({ drawn }: { drawn: { deck: DeckId; key: number } | n
       <Atom position={[0, 0, -1.3]} />
 
       {(Object.keys(DECK_POS) as DeckId[]).map((d) => (
-        <Deck key={d} deck={d} drawKey={drawn?.deck === d ? drawn.key : undefined} />
+        <Deck key={d} deck={d} lang={lang} drawKey={drawn?.deck === d ? drawn.key : undefined} />
       ))}
 
       {BOARD.map((sq) => (
-        <Tile key={sq.index} sq={sq} />
+        <Tile key={sq.index} sq={sq} lang={lang} />
       ))}
     </group>
   );
 }
 
-function Tile({ sq }: { sq: Square }) {
+function Tile({ sq, lang }: { sq: Square; lang: Lang }) {
+  const label = SQUARE_NAME[sq.type][lang];
   const [x, , z] = cellCenter(sq.col, sq.row);
   const side = innerSide(sq);
   const isCorner = side === null;
   const strip = useMemo(
-    () => (side ? stripTexture(LABEL[sq.type], SQUARE_COLOR[sq.type], TEXT_ON[sq.type] ?? "#fff") : null),
-    [side, sq.type],
+    () => (side ? stripTexture(label, SQUARE_COLOR[sq.type], TEXT_ON[sq.type] ?? "#fff") : null),
+    [side, sq.type, label],
   );
   const cornerLabel = useMemo(
-    () => (isCorner ? textTexture([{ text: LABEL[sq.type], size: 110, color: "#ffffff" }], 1024, 200) : null),
-    [isCorner, sq.type],
+    () => (isCorner ? textTexture([{ text: label, size: 110, color: "#ffffff" }], 1024, 200) : null),
+    [isCorner, label],
   );
 
   // Strip along the inner edge; text reads from outside the board.
@@ -216,9 +208,10 @@ const CARD_T = 0.028;
 const STACK = 8;
 const DRAW_S = 1.1;
 
-function Deck({ deck, drawKey }: { deck: DeckId; drawKey?: number }) {
+function Deck({ deck, drawKey, lang }: { deck: DeckId; drawKey?: number; lang: Lang }) {
+  const label = SQUARE_NAME[deck][lang];
   const color = DECK_COLOR[deck];
-  const top = useMemo(() => deckTexture(LABEL[deck], color, deck === "kovalen" ? "#3a2a00" : "#ffffff"), [deck, color]);
+  const top = useMemo(() => deckTexture(label, color, deck === "kovalen" ? "#3a2a00" : "#ffffff"), [deck, color, label]);
   const face = useMemo(() => cardFaceTexture(color), [color]);
   const [x, z] = DECK_POS[deck];
   const flying = useRef<THREE.Group>(null);

@@ -32,7 +32,8 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
   automatic quality drop on slow devices, and a 2D board toggle / fallback
 - ✅ Phase 6 (in progress): original music + sound effects synthesised in the browser (no audio files),
   Muzik / Bunyi toggles; redesigned landing page (hero, 5-box room code, characters, how to play,
-  board squares)
+  board squares); English / Bahasa Melayu toggle (English by default) covering every screen, server
+  message, the 3D board labels and all 46 question cards
 
 ## Run locally
 

@@ -6,6 +6,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { CHARACTERS, type CharacterId } from "@/shared/characters.ts";
+import { tx, type Lang, type Text } from "@/shared/i18n.ts";
 import type { DeckId, Player } from "@/shared/types.ts";
 import { BoardModel, TILE_TOP, TW, squareToWorld } from "./three/BoardModel";
 import { STEP_MS, tokenOffset, useShownPositions, type MoveAnim } from "./useShownPositions";
@@ -21,14 +22,15 @@ export interface Board3DProps {
   deltas: { values: Record<string, number>; key: number } | null;
   /** a card was just drawn from this deck: animate it */
   drawn: { deck: DeckId; key: number } | null;
+  lang: Lang;
 }
 
 type CamView = "iso" | "top" | "side" | "focus";
-const VIEWS: { id: CamView; label: string }[] = [
-  { id: "iso", label: "Isometrik" },
-  { id: "top", label: "Atas" },
-  { id: "side", label: "Sisi" },
-  { id: "focus", label: "Fokus" },
+const VIEWS: { id: CamView; label: Text }[] = [
+  { id: "iso", label: tx("Isometric", "Isometrik") },
+  { id: "top", label: tx("Top", "Atas") },
+  { id: "side", label: tx("Side", "Sisi") },
+  { id: "focus", label: tx("Focus", "Fokus") },
 ];
 
 export default function Board3D(props: Board3DProps) {
@@ -55,19 +57,19 @@ export default function Board3D(props: Board3DProps) {
         <AdaptiveQuality />
         <Stars radius={70} depth={35} count={1200} factor={3} fade speed={0.6} />
         <Suspense fallback={null}>
-          <BoardModel drawn={props.drawn} />
+          <BoardModel drawn={props.drawn} lang={props.lang} />
           <Scene {...props} />
         </Suspense>
         <CameraRig view={view} players={props.players} currentId={props.currentId} canRotate={canRotate} />
       </Canvas>
-      <div className="cam-views" role="group" aria-label="Pandangan kamera">
+      <div className="cam-views" role="group" aria-label={props.lang === "ms" ? "Pandangan kamera" : "Camera view"}>
         {VIEWS.map((v) => (
           <button key={v.id} className={`cam-view ${view === v.id ? "on" : ""}`} onClick={() => setView(v.id)}>
-            {v.label}
+            {v.label[props.lang]}
           </button>
         ))}
       </div>
-      {canRotate && <div className="board3d-hint">Seret untuk memutar · tatal untuk zum</div>}
+      {canRotate && <div className="board3d-hint">{props.lang === "ms" ? "Seret untuk memutar · tatal untuk zum" : "Drag to rotate · scroll to zoom"}</div>}
     </div>
   );
 }

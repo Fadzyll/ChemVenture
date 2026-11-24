@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useLang } from "@/lib/i18n";
 import { CODE_ALPHABET, CODE_LENGTH } from "@/shared/roomCode.ts";
 
 /**
@@ -19,6 +20,7 @@ export default function CodeInput({
   invalid?: boolean;
 }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const { t } = useLang();
   const clean = (s: string) =>
     s
       .toUpperCase()
@@ -41,7 +43,7 @@ export default function CodeInput({
   };
 
   return (
-    <div className={`code-boxes ${invalid ? "invalid" : ""}`} role="group" aria-label="Kod bilik">
+    <div className={`code-boxes ${invalid ? "invalid" : ""}`} role="group" aria-label={t("Room code", "Kod bilik")}>
       {Array.from({ length: CODE_LENGTH }, (_, i) => (
         <input
           key={i}
@@ -55,7 +57,7 @@ export default function CodeInput({
           autoComplete="off"
           spellCheck={false}
           maxLength={CODE_LENGTH}
-          aria-label={`Aksara ${i + 1}`}
+          aria-label={t(`Character ${i + 1}`, `Aksara ${i + 1}`)}
           onFocus={(e) => e.target.select()}
           onChange={(e) => {
             const typed = e.target.value;

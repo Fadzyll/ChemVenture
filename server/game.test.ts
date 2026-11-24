@@ -13,7 +13,7 @@ function rng(dice: number[] = []): game.Rng {
   return { die: () => dice.shift() ?? 1, shuffle: (a) => a };
 }
 function must(r: rules.Result): RoomState {
-  if (!r.ok) throw new Error(`${r.code}: ${r.message}`);
+  if (!r.ok) throw new Error(`${r.code}: ${JSON.stringify(r.message)}`);
   return r.state;
 }
 /** Three players, characters picked, game initialised. Turn order p1, p2, p3. */

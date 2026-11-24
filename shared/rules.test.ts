@@ -19,7 +19,7 @@ import {
 import { DISCONNECT_GRACE_MS, type RoomState } from "./types.ts";
 
 function must(r: Result): RoomState {
-  if (!r.ok) throw new Error(`expected ok, got ${r.code}: ${r.message}`);
+  if (!r.ok) throw new Error(`expected ok, got ${r.code}: ${JSON.stringify(r.message)}`);
   return r.state;
 }
 function code(r: Result) {

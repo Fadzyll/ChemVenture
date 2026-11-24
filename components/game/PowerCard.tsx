@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useLang } from "@/lib/i18n";
+import { tx } from "@/shared/i18n.ts";
 import { CHARACTERS, POWER_USES } from "@/shared/characters.ts";
 import { coinPoints } from "@/shared/config.ts";
 import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
 
 export function PowerDots({ left }: { left: number }) {
+  const { t } = useLang();
   return (
-    <span className="power-dots" aria-label={`${left} kuasa tinggal`}>
+    <span className="power-dots" aria-label={t(`${left} powers left`, `${left} kuasa tinggal`)}>
       {Array.from({ length: POWER_USES }, (_, i) => (
         <span key={i} className={`power-dot ${i < left ? "on" : ""}`} />
       ))}
@@ -15,17 +18,18 @@ export function PowerDots({ left }: { left: number }) {
   );
 }
 
-const WHEN: Record<string, string> = {
-  oxyra: "Pada giliran anda, sebelum membaling dadu.",
-  ghoston: "Pada giliran anda, sebelum membaling dadu.",
-  mystra: "Semasa anda perlu menjawab kad ION/KOVALEN.",
-  quark: "Ditawarkan apabila anda menjejak petak ION/KOVALEN.",
-  calco: "Ditawarkan apabila pemain lain menjawab kad ION/KOVALEN dengan betul.",
+const WHEN: Record<string, ReturnType<typeof tx>> = {
+  oxyra: tx("On your turn, before rolling.", "Pada giliran anda, sebelum membaling dadu."),
+  ghoston: tx("On your turn, before rolling.", "Pada giliran anda, sebelum membaling dadu."),
+  mystra: tx("When you have to answer an ION/COVALENT card.", "Semasa anda perlu menjawab kad ION/KOVALEN."),
+  quark: tx("Offered when you land on ION/COVALENT.", "Ditawarkan apabila anda menjejak petak ION/KOVALEN."),
+  calco: tx("Offered when another player answers an ION/COVALENT card correctly.", "Ditawarkan apabila pemain lain menjawab kad ION/KOVALEN dengan betul."),
 };
 
 /** Your character's power, with a button whenever it can be used right now. */
 export default function PowerCard({ state, me, send }: { state: RoomState; me: Player; send: (m: ClientMessage) => void }) {
   const [picking, setPicking] = useState(false);
+  const { t, tr } = useLang();
   if (!me.character || me.eliminated) return null;
   const c = CHARACTERS[me.character];
   const g = state.game!;
@@ -65,30 +69,30 @@ export default function PowerCard({ state, me, send }: { state: RoomState; me: P
       <img src={c.image} alt={c.name} className="power-img" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="row" style={{ gap: 8 }}>
-          <strong>Kuasa {c.name}</strong>
+          <strong>{t(`${c.name}'s power`, `Kuasa ${c.name}`)}</strong>
           <PowerDots left={me.powersLeft} />
         </div>
-        <div className="small">{c.power}</div>
-        <div className="small muted">{hasUses ? WHEN[c.id] : "Kuasa sudah habis digunakan."}</div>
+        <div className="small">{tr({ en: c.powerEn, ms: c.power })}</div>
+        <div className="small muted">{hasUses ? tr(WHEN[c.id]) : t("Power used up.", "Kuasa sudah habis digunakan.")}</div>
         {usable && !picking && (
           <button
             className="btn btn-pink btn-small"
             style={{ marginTop: 8 }}
             onClick={() => (needsTarget ? setPicking(true) : use())}
           >
-            Guna kuasa ({me.powersLeft} lagi)
+            {t(`Use power (${me.powersLeft} left)`, `Guna kuasa (${me.powersLeft} lagi)`)}
           </button>
         )}
         {usable && picking && (
           <div className="row" style={{ gap: 6, marginTop: 8 }}>
-            <span className="small">{c.id === "ghoston" ? "Ambil daripada:" : "Cabar:"}</span>
-            {targets.map((t) => (
-              <button key={t.id} className="btn btn-pink btn-small" onClick={() => use(t.id)}>
-                {t.name}
+            <span className="small">{c.id === "ghoston" ? t("Take from:", "Ambil daripada:") : t("Challenge:", "Cabar:")}</span>
+            {targets.map((target) => (
+              <button key={target.id} className="btn btn-pink btn-small" onClick={() => use(target.id)}>
+                {target.name}
               </button>
             ))}
             <button className="btn btn-ghost btn-small" onClick={() => setPicking(false)}>
-              Batal
+              {t("Cancel", "Batal")}
             </button>
           </div>
         )}

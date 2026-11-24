@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLang } from "@/lib/i18n";
 
 // Which of the 9 grid cells (0..8) hold a pip for each face.
 const PIPS: Record<number, number[]> = {
@@ -20,6 +21,7 @@ const ROLL_MS = 800;
  */
 export default function Die({ value, rollKey, big }: { value: number | null; rollKey?: number; big?: boolean }) {
   const [shown, setShown] = useState<number | null>(value);
+  const { t } = useLang();
   const [rolling, setRolling] = useState(false);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function Die({ value, rollKey, big }: { value: number | null; rol
 
   const cls = ["die", big && "big", shown == null && "blank", rolling && "rolling"].filter(Boolean).join(" ");
   return (
-    <div className={cls} role="img" aria-label={shown == null ? "Belum baling" : `Dadu: ${shown}`}>
+    <div className={cls} role="img" aria-label={shown == null ? t("Not rolled yet", "Belum baling") : t(`Dice: ${shown}`, `Dadu: ${shown}`)}>
       {shown != null &&
         Array.from({ length: 9 }, (_, i) => (
           <span key={i} className={PIPS[shown].includes(i) ? "pip" : undefined} />

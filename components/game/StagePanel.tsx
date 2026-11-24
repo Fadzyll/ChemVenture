@@ -1,6 +1,7 @@
 "use client";
 
-import { SQUARE_COLOR, SQUARE_LABEL } from "@/shared/board.ts";
+import { useLang } from "@/lib/i18n";
+import { SQUARE_COLOR, SQUARE_NAME } from "@/shared/board.ts";
 import { CHARACTERS } from "@/shared/characters.ts";
 import {
   CALCO_SECONDS,
@@ -24,8 +25,9 @@ interface Props {
   serverNow: () => number;
 }
 
-/** The pop-up over the board for questions, RADIKAL/GANGGUAN choices and turn results. */
+/** The pop-up over the board for questions, RADICAL/DISRUPTION choices and turn results. */
 export default function StagePanel({ state, me, send, serverNow }: Props) {
+  const { t, tr } = useLang();
   const stage = state.game!.stage;
   const currentId = state.turnOrder[state.game!.turnIndex];
   const current = state.players.find((p) => p.id === currentId)!;
@@ -42,22 +44,28 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
     calcoWindow: CALCO_SECONDS,
     result: RESULT_SECONDS,
   }[stage.kind];
-  const nameOf = (id: string) => (id === me.id ? "Anda" : (state.players.find((p) => p.id === id)?.name ?? "?"));
+  const nameOf = (id: string) => (id === me.id ? t("You", "Anda") : (state.players.find((p) => p.id === id)?.name ?? "?"));
+  const secs = Math.ceil(left / 1000);
   const timer = (
-    <div className="stage-timer" aria-label={`${Math.ceil(left / 1000)} saat lagi`}>
+    <div className="stage-timer" aria-label={t(`${secs} seconds left`, `${secs} saat lagi`)}>
       <div className="stage-timer-bar" style={{ width: `${Math.min(100, (left / (total * 1000)) * 100)}%` }} />
-      <span>{Math.ceil(left / 1000)}s</span>
+      <span>{secs}s</span>
     </div>
   );
 
   if (stage.kind === "question") {
     const mine = stage.answererId === me.id;
     const answerer = state.players.find((p) => p.id === stage.answererId)!;
-    const challenge = stage.challengedBy ? `Mystra (${nameOf(stage.challengedBy)}) mencabar ${nameOf(answerer.id)}! ` : "";
+    const challenge = stage.challengedBy
+      ? t(
+          `Mystra (${nameOf(stage.challengedBy)}) challenged ${nameOf(answerer.id)}! `,
+          `Mystra (${nameOf(stage.challengedBy)}) mencabar ${nameOf(answerer.id)}! `,
+        )
+      : "";
     return (
       <QuestionView
         question={stage.question}
-        subtitle={challenge + (mine ? "Giliran anda menjawab!" : `${answerer.name} sedang menjawab…`)}
+        subtitle={challenge + (mine ? t("Your turn to answer!", "Giliran anda menjawab!") : t(`${answerer.name} is answering…`, `${answerer.name} sedang menjawab…`))}
         canAnswer={mine}
         onAnswer={(i) => send({ type: "answer", choice: i })}
         timer={timer}
@@ -74,8 +82,11 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
         question={stage.question}
         subtitle={
           done
-            ? `Jawapan dihantar. Menunggu pemain lain (${stage.answered.length}/${activeCount})…`
-            : "Semua pemain menjawab soalan ini!"
+            ? t(
+                `Answer sent. Waiting for the others (${stage.answered.length}/${activeCount})…`,
+                `Jawapan dihantar. Menunggu pemain lain (${stage.answered.length}/${activeCount})…`,
+              )
+            : t("Everyone answers this question!", "Semua pemain menjawab soalan ini!")
         }
         canAnswer={inGame && !done}
         onAnswer={(i) => send({ type: "answer", choice: i })}
@@ -87,28 +98,38 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
   if (stage.kind === "choice") {
     const mine = currentId === me.id;
     const isRadikal = stage.square === "radikal";
+    const who = mine ? t("You", "Anda") : current.name;
     return (
       <div className="stage-card" style={{ borderColor: SQUARE_COLOR[stage.square] }}>
         <div className="stage-deck" style={{ background: SQUARE_COLOR[stage.square] }}>
-          {SQUARE_LABEL[stage.square]}
+          {tr(SQUARE_NAME[stage.square])}
         </div>
         <p className="stage-prompt">
           {isRadikal
-            ? `${mine ? "Anda" : current.name} terkena RADIKAL! Rehat satu pusingan, atau bayar untuk keluar.`
-            : `${mine ? "Anda" : current.name} terkena GANGGUAN! Pergi ke RADIKAL, atau bayar untuk kekal di sini.`}
+            ? t(
+                `${who} landed on RADICAL! Sit out one round, or pay to leave.`,
+                `${who} terkena RADIKAL! Rehat satu pusingan, atau bayar untuk keluar.`,
+              )
+            : t(
+                `${who} landed on DISRUPTION! Go to RADICAL, or pay to stay here.`,
+                `${who} terkena GANGGUAN! Pergi ke RADIKAL, atau bayar untuk kekal di sini.`,
+              )}
         </p>
         {mine ? (
           <div className="stage-options">
             <button className="btn btn-primary" disabled={!stage.canPay} onClick={() => send({ type: "choose", option: "pay" })}>
-              Bayar {ESCAPE_COST.singlet} singlet + {ESCAPE_COST.duplet} duplet
-              {!stage.canPay && " (koin tidak cukup)"}
+              {t(
+                `Pay ${ESCAPE_COST.singlet} singlet + ${ESCAPE_COST.duplet} duplet`,
+                `Bayar ${ESCAPE_COST.singlet} singlet + ${ESCAPE_COST.duplet} duplet`,
+              )}
+              {!stage.canPay && t(" (not enough coins)", " (koin tidak cukup)")}
             </button>
             <button className="btn btn-ghost" onClick={() => send({ type: "choose", option: "decline" })}>
-              {isRadikal ? "Rehat satu pusingan" : "Pergi ke RADIKAL"}
+              {isRadikal ? t("Sit out one round", "Rehat satu pusingan") : t("Go to RADICAL", "Pergi ke RADIKAL")}
             </button>
           </div>
         ) : (
-          <p className="muted center">Menunggu {current.name} membuat pilihan…</p>
+          <p className="muted center">{t(`Waiting for ${current.name} to choose…`, `Menunggu ${current.name} membuat pilihan…`)}</p>
         )}
         {timer}
       </div>
@@ -121,34 +142,41 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
     return (
       <div className="stage-card" style={{ borderColor: CHARACTERS.quark.color }}>
         <div className="stage-deck" style={{ background: color, color: stage.deck === "kovalen" ? "#2b2000" : "#fff" }}>
-          KAD {stage.deck.toUpperCase()} · KUASA QUARK
+          {t(`${tr(SQUARE_NAME[stage.deck])} CARD · QUARK'S POWER`, `KAD ${tr(SQUARE_NAME[stage.deck])} · KUASA QUARK`)}
         </div>
         {!stage.revealed ? (
           mine ? (
             <>
-              <p className="stage-prompt">Guna kuasa Quark untuk melihat {QUARK_CHOICES} kad dan memilih soalan yang anda mahu?</p>
+              <p className="stage-prompt">
+                {t(
+                  `Use Quark's power to look at ${QUARK_CHOICES} cards and choose the question you want?`,
+                  `Guna kuasa Quark untuk melihat ${QUARK_CHOICES} kad dan memilih soalan yang anda mahu?`,
+                )}
+              </p>
               <div className="stage-options">
                 <button className="btn btn-pink" onClick={() => send({ type: "usePower" })}>
-                  Guna kuasa ({me.powersLeft} lagi)
+                  {t(`Use power (${me.powersLeft} left)`, `Guna kuasa (${me.powersLeft} lagi)`)}
                 </button>
                 <button className="btn btn-ghost" onClick={() => send({ type: "skipPower" })}>
-                  Ambil kad biasa
+                  {t("Draw a normal card", "Ambil kad biasa")}
                 </button>
               </div>
             </>
           ) : (
-            <p className="muted center">{current.name} (Quark) sedang memutuskan sama ada mahu guna kuasa…</p>
+            <p className="muted center">
+              {t(`${current.name} (Quark) is deciding whether to use the power…`, `${current.name} (Quark) sedang memutuskan sama ada mahu guna kuasa…`)}
+            </p>
           )
         ) : (
           <>
             <div className="muted small center">
-              {mine ? "Pilih satu soalan untuk dijawab:" : `${current.name} sedang memilih soalan…`}
+              {mine ? t("Pick one question to answer:", "Pilih satu soalan untuk dijawab:") : t(`${current.name} is picking a question…`, `${current.name} sedang memilih soalan…`)}
             </div>
             <div className="stage-options">
               {stage.options.map((q, i) => (
                 <button key={q.id} className="option quark-option" disabled={!mine} onClick={() => send({ type: "pickQuestion", index: i })}>
                   <span className="option-letter">{i + 1}</span>
-                  <span>{q.prompt}</span>
+                  <span>{tr(q.prompt)}</span>
                 </button>
               ))}
             </div>
@@ -164,20 +192,20 @@ export default function StagePanel({ state, me, send, serverNow }: Props) {
     return (
       <div className="stage-card" style={{ borderColor: CHARACTERS.calco.color }}>
         <div className="stage-deck" style={{ background: CHARACTERS.calco.color }}>
-          KUASA CALCO
+          {t("CALCO'S POWER", "KUASA CALCO")}
         </div>
         <p className="stage-prompt">
-          {nameOf(stage.answererId)} menjawab dengan betul!
+          {t(`${nameOf(stage.answererId)} answered correctly!`, `${nameOf(stage.answererId)} menjawab dengan betul!`)}
           <br />
-          {mine ? "Halang ganjarannya?" : `Menunggu ${nameOf(stage.calcoId)} (Calco)…`}
+          {mine ? t("Block their reward?", "Halang ganjarannya?") : t(`Waiting for ${nameOf(stage.calcoId)} (Calco)…`, `Menunggu ${nameOf(stage.calcoId)} (Calco)…`)}
         </p>
         {mine && (
           <div className="stage-options">
             <button className="btn btn-pink" onClick={() => send({ type: "usePower" })}>
-              Halang ganjaran ({me.powersLeft} lagi)
+              {t(`Block reward (${me.powersLeft} left)`, `Halang ganjaran (${me.powersLeft} lagi)`)}
             </button>
             <button className="btn btn-ghost" onClick={() => send({ type: "skipPower" })}>
-              Biarkan
+              {t("Let it go", "Biarkan")}
             </button>
           </div>
         )}
@@ -203,19 +231,21 @@ function QuestionView({
   onAnswer: (i: number) => void;
   timer: React.ReactNode;
 }) {
+  const { t, tr } = useLang();
   const color = SQUARE_COLOR[question.deck];
+  const deck = tr(SQUARE_NAME[question.deck]);
   return (
     <div className="stage-card" style={{ borderColor: color }}>
       <div className="stage-deck" style={{ background: color, color: question.deck === "kovalen" ? "#2b2000" : "#fff" }}>
-        KAD {question.deck.toUpperCase()}
+        {t(`${deck} CARD`, `KAD ${deck}`)}
       </div>
       <div className="muted small center">{subtitle}</div>
-      <p className="stage-prompt">{question.prompt}</p>
+      <p className="stage-prompt">{tr(question.prompt)}</p>
       <div className="stage-options">
         {question.options.map((opt, i) => (
           <button key={i} className="option" disabled={!canAnswer} onClick={() => onAnswer(i)}>
             <span className="option-letter">{LETTERS[i]}</span>
-            <span>{opt}</span>
+            <span>{tr(opt)}</span>
           </button>
         ))}
       </div>
@@ -235,8 +265,9 @@ function ResultView({
   me: Player;
   timer: React.ReactNode;
 }) {
+  const { t, tr } = useLang();
   const r = stage.result;
-  const name = (id: string) => (id === me.id ? "Anda" : (state.players.find((p) => p.id === id)?.name ?? "?"));
+  const name = (id: string) => (id === me.id ? t("You", "Anda") : (state.players.find((p) => p.id === id)?.name ?? "?"));
   const deltas = Object.entries(r.deltas).filter(([, d]) => d !== 0);
   const q = r.question;
   const pickedBy = (i: number) =>
@@ -247,11 +278,11 @@ function ResultView({
   return (
     <div className="stage-card" style={{ borderColor: q ? SQUARE_COLOR[q.deck] : "var(--accent)" }}>
       <h3 className="center" style={{ margin: 0 }}>
-        {r.title}
+        {tr(r.title)}
       </h3>
       {q && (
         <>
-          <p className="stage-prompt small">{q.prompt}</p>
+          <p className="stage-prompt small">{tr(q.prompt)}</p>
           <div className="stage-options">
             {q.options.map((opt, i) => {
               const correct = i === r.correctIndex;
@@ -259,7 +290,7 @@ function ResultView({
               return (
                 <div key={i} className={`option ${correct ? "option-correct" : pickers.length ? "option-wrong" : ""}`}>
                   <span className="option-letter">{correct ? "✓" : LETTERS[i]}</span>
-                  <span style={{ flex: 1 }}>{opt}</span>
+                  <span style={{ flex: 1 }}>{tr(opt)}</span>
                   {pickers.length > 0 && <span className="small">{pickers.join(", ")}</span>}
                 </div>
               );
@@ -269,7 +300,7 @@ function ResultView({
       )}
       {r.lines.map((l, i) => (
         <div key={i} className="center">
-          {l}
+          {tr(l)}
         </div>
       ))}
       {deltas.length > 0 && (

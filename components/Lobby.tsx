@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useLang } from "@/lib/i18n";
 import { sound } from "@/lib/sound";
 import { canStart } from "@/shared/rules.ts";
 import { MAX_PLAYERS, MIN_PLAYERS, type ClientMessage, type Player, type RoomState } from "@/shared/types.ts";
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function Lobby({ state, me, send, onLeave }: Props) {
+  const { t } = useLang();
   const isHost = state.hostId === me.id;
   const [copied, setCopied] = useState(false);
   const readyCount = state.players.filter((p) => p.ready).length;
@@ -28,7 +30,7 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
     const link = `${window.location.origin}/room/${state.code}`;
     try {
       if (navigator.share && /Mobi/i.test(navigator.userAgent)) {
-        await navigator.share({ title: "ChemVenture", text: `Jom main! Kod: ${state.code}`, url: link });
+        await navigator.share({ title: "ChemVenture", text: t(`Let's play! Code: ${state.code}`, `Jom main! Kod: ${state.code}`), url: link });
       } else {
         await navigator.clipboard.writeText(link);
         setCopied(true);
@@ -39,16 +41,16 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
     }
   };
 
-  let startHint = "Semua pemain sudah sedia!";
-  if (state.players.length < MIN_PLAYERS) startHint = `Perlukan sekurang-kurangnya ${MIN_PLAYERS} pemain.`;
-  else if (!state.players.every((p) => p.connected)) startHint = "Menunggu pemain yang terputus sambungan…";
-  else if (!startable) startHint = `Menunggu semua pemain sedia (${readyCount}/${state.players.length}).`;
+  let startHint = t("Everyone is ready!", "Semua pemain sudah sedia!");
+  if (state.players.length < MIN_PLAYERS) startHint = t(`Needs at least ${MIN_PLAYERS} players.`, `Perlukan sekurang-kurangnya ${MIN_PLAYERS} pemain.`);
+  else if (!state.players.every((p) => p.connected)) startHint = t("Waiting for disconnected players…", "Menunggu pemain yang terputus sambungan…");
+  else if (!startable) startHint = t(`Waiting for everyone to be ready (${readyCount}/${state.players.length}).`, `Menunggu semua pemain sedia (${readyCount}/${state.players.length}).`);
 
   return (
     <div className="lobby-grid">
       <section className="panel">
         <div className="row" style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0 }}>Pemain</h2>
+          <h2 style={{ margin: 0 }}>{t("Players", "Pemain")}</h2>
           <span className="spacer" />
           <span className="muted small">
             {state.players.length}/{MAX_PLAYERS}
@@ -60,23 +62,23 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
               <PlayerAvatar player={p} />
               <span className="player-name">
                 {p.name}
-                {p.id === me.id && <span className="muted small"> (anda)</span>}
+                {p.id === me.id && <span className="muted small"> {t("(you)", "(anda)")}</span>}
               </span>
-              {p.id === state.hostId && <span className="badge badge-host">Hos</span>}
+              {p.id === state.hostId && <span className="badge badge-host">{t("Host", "Hos")}</span>}
               <span className="spacer" />
               {!p.connected ? (
-                <span className="badge badge-off">Terputus</span>
+                <span className="badge badge-off">{t("Offline", "Terputus")}</span>
               ) : p.ready ? (
-                <span className="badge badge-ready">Sedia</span>
+                <span className="badge badge-ready">{t("Ready", "Sedia")}</span>
               ) : (
-                <span className="badge badge-wait">Belum sedia</span>
+                <span className="badge badge-wait">{t("Not ready", "Belum sedia")}</span>
               )}
               {isHost && p.id !== me.id && (
                 <button
                   className="btn btn-ghost btn-small"
                   onClick={() => send({ type: "kick", playerId: p.id })}
-                  title="Keluarkan pemain"
-                  aria-label={`Keluarkan ${p.name}`}
+                  title={t("Remove player", "Keluarkan pemain")}
+                  aria-label={t(`Remove ${p.name}`, `Keluarkan ${p.name}`)}
                 >
                   ✕
                 </button>
@@ -86,7 +88,7 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
           {Array.from({ length: MAX_PLAYERS - state.players.length }, (_, i) => (
             <div key={`empty-${i}`} className="player empty">
               <div className="avatar" style={{ background: "transparent" }} />
-              <span className="muted">Menunggu pemain…</span>
+              <span className="muted">{t("Waiting for a player…", "Menunggu pemain…")}</span>
             </div>
           ))}
         </div>
@@ -94,13 +96,13 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
 
       <section className="panel stack">
         <div>
-          <div className="muted small">Kongsi kod ini dengan rakan anda</div>
+          <div className="muted small">{t("Share this code with your friends", "Kongsi kod ini dengan rakan anda")}</div>
           <div className="row">
             <span className="room-code" style={{ fontSize: "2.2rem" }}>
               {state.code}
             </span>
             <button className="btn btn-ghost btn-small" onClick={copyLink}>
-              {copied ? "Disalin!" : "Salin pautan"}
+              {copied ? t("Copied!", "Disalin!") : t("Copy link", "Salin pautan")}
             </button>
           </div>
         </div>
@@ -109,29 +111,34 @@ export default function Lobby({ state, me, send, onLeave }: Props) {
           className={`btn btn-big ${me.ready ? "btn-ghost" : "btn-good"}`}
           onClick={() => send({ type: "setReady", ready: !me.ready })}
         >
-          {me.ready ? "Batal sedia" : "Saya sedia!"}
+          {me.ready ? t("Not ready", "Batal sedia") : t("I'm ready!", "Saya sedia!")}
         </button>
 
         {isHost ? (
           <>
             <button className="btn btn-primary btn-big" disabled={!startable} onClick={() => send({ type: "start" })}>
-              Mula Permainan
+              {t("Start Game", "Mula Permainan")}
             </button>
             <div className={startable ? "notice small" : "muted small"}>{startHint}</div>
           </>
         ) : (
           <div className="muted small">
-            Menunggu hos memulakan permainan. {readyCount}/{state.players.length} pemain sedia.
+            {t(
+              `Waiting for the host to start. ${readyCount}/${state.players.length} players ready.`,
+              `Menunggu hos memulakan permainan. ${readyCount}/${state.players.length} pemain sedia.`,
+            )}
           </div>
         )}
 
         <div className="muted small">
-          Selepas permainan bermula, semua pemain membaling dadu untuk menentukan giliran. Skor tertinggi memilih
-          karakter dahulu.
+          {t(
+            "When the game starts, everyone rolls the dice to decide turn order. The highest roll picks a character first.",
+            "Selepas permainan bermula, semua pemain membaling dadu untuk menentukan giliran. Skor tertinggi memilih karakter dahulu.",
+          )}
         </div>
 
         <button className="btn btn-ghost btn-small" onClick={onLeave} style={{ alignSelf: "flex-start" }}>
-          Keluar bilik
+          {t("Leave room", "Keluar bilik")}
         </button>
       </section>
     </div>

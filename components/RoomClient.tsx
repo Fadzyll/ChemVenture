@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { join, tx, type Text } from "@/shared/i18n.ts";
 import { generateRoomCode } from "@/shared/roomCode.ts";
 import { MAX_PLAYERS, NAME_MAX_LENGTH, type ErrorCode, type GameEvent, type Phase } from "@/shared/types.ts";
 import { clearJoined, getJoinedName, getSavedName, saveName, setJoinedName } from "@/lib/identity";
+import { LangToggle, useLang } from "@/lib/i18n";
 import { sound } from "@/lib/sound";
 import { useRoom } from "@/lib/useRoom";
 import SoundControls from "./SoundControls";
@@ -23,22 +25,23 @@ const NAME_ERRORS: ErrorCode[] = ["NAME_TAKEN", "NAME_INVALID"];
 /** Keep the roll results on screen for a moment before moving to character pick. */
 const RESULT_HOLD_MS = 2600;
 
-const PHASE_LABEL: Record<Phase, string> = {
-  lobby: "Lobi",
-  rolling: "Baling dadu",
-  picking: "Pilih karakter",
-  playing: "Permainan",
-  ended: "Tamat",
+const PHASE_LABEL: Record<Phase, Text> = {
+  lobby: tx("Lobby", "Lobi"),
+  rolling: tx("Rolling", "Baling dadu"),
+  picking: tx("Pick character", "Pilih karakter"),
+  playing: tx("Playing", "Permainan"),
+  ended: tx("Finished", "Tamat"),
 };
 
 export default function RoomClient({ code, isCreating }: { code: string; isCreating: boolean }) {
   const router = useRouter();
+  const { t, tr } = useLang();
   const [lastRoll, setLastRoll] = useState<LastRoll | null>(null);
   const [holdResults, setHoldResults] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [move, setMove] = useState<MoveAnim | null>(null);
   const [boardRoll, setBoardRoll] = useState<RollAnim | null>(null);
-  const [drumText, setDrumText] = useState<string | null>(null);
+  const [drumText, setDrumText] = useState<Text | null>(null);
   const drumTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onEvent = (e: GameEvent) => {
@@ -57,7 +60,7 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
       setMove({ playerId: e.playerId, from: e.from, to: e.to, key });
     }
     if (e.type === "drumCard" || e.type === "power") {
-      setDrumText(e.type === "drumCard" ? `DRUM: ${e.text}` : `⚡ ${e.text}`);
+      setDrumText(join([e.type === "drumCard" ? "DRUM: " : "⚡ ", e.text]));
       if (drumTimer.current) clearTimeout(drumTimer.current);
       drumTimer.current = setTimeout(() => setDrumText(null), 8000);
     }
@@ -73,8 +76,8 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
 
   const [name, setName] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [fatal, setFatal] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [fatal, setFatal] = useState<Text | null>(null);
+  const [toast, setToast] = useState<Text | null>(null);
 
   // On mount: prefill the name, and re-join automatically after a refresh.
   useEffect(() => {
@@ -125,8 +128,8 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
       return;
     }
     setToast(error.message);
-    const t = setTimeout(() => setToast(null), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error]);
 
@@ -151,9 +154,13 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     return (
       <Shell code={code}>
         <div className="panel stack center">
-          <h2>{status === "kicked" ? "Anda telah dikeluarkan oleh hos." : "Bilik ini dibuka dalam tab lain."}</h2>
+          <h2>
+            {status === "kicked"
+              ? t("You were removed by the host.", "Anda telah dikeluarkan oleh hos.")
+              : t("This room is open in another tab.", "Bilik ini dibuka dalam tab lain.")}
+          </h2>
           <Link className="btn btn-primary" href="/">
-            Kembali ke laman utama
+            {t("Back to home", "Kembali ke laman utama")}
           </Link>
         </div>
       </Shell>
@@ -164,9 +171,9 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     return (
       <Shell code={code}>
         <div className="panel stack center">
-          <h2>{fatal}</h2>
+          <h2>{tr(fatal)}</h2>
           <Link className="btn btn-primary" href="/">
-            Kembali ke laman utama
+            {t("Back to home", "Kembali ke laman utama")}
           </Link>
         </div>
       </Shell>
@@ -181,13 +188,17 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     return (
       <Shell code={code} connected={status === "open"}>
         <form className="panel stack" onSubmit={submitName} style={{ maxWidth: 440, margin: "0 auto" }}>
-          <h2>{isCreating ? "Cipta bilik baharu" : `Sertai bilik ${code}`}</h2>
-          {roomGone && !submitted && <div className="alert small">Bilik ini belum wujud. Semak kod anda.</div>}
-          {started && !submitted && <div className="alert small">Permainan dalam bilik ini sudah bermula.</div>}
-          {full && !submitted && <div className="alert small">Bilik ini sudah penuh.</div>}
-          {toast && <div className="alert small">{toast}</div>}
+          <h2>{isCreating ? t("Create a new room", "Cipta bilik baharu") : t(`Join room ${code}`, `Sertai bilik ${code}`)}</h2>
+          {roomGone && !submitted && (
+            <div className="alert small">{t("This room doesn't exist yet. Check your code.", "Bilik ini belum wujud. Semak kod anda.")}</div>
+          )}
+          {started && !submitted && (
+            <div className="alert small">{t("The game in this room has already started.", "Permainan dalam bilik ini sudah bermula.")}</div>
+          )}
+          {full && !submitted && <div className="alert small">{t("This room is full.", "Bilik ini sudah penuh.")}</div>}
+          {toast && <div className="alert small">{tr(toast)}</div>}
           <label className="muted small" htmlFor="name">
-            Nama anda
+            {t("Your name", "Nama anda")}
           </label>
           <input
             id="name"
@@ -196,15 +207,15 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
             maxLength={NAME_MAX_LENGTH}
             autoFocus
             autoComplete="nickname"
-            placeholder="cth. Aisyah"
+            placeholder={t("e.g. Aisyah", "cth. Aisyah")}
             onChange={(e) => setName(e.target.value)}
             disabled={submitted}
           />
           <button className="btn btn-primary btn-big" type="submit" disabled={!name.trim() || submitted}>
-            {submitted ? "Menyambung…" : isCreating ? "Cipta & Masuk" : "Masuk"}
+            {submitted ? t("Connecting…", "Menyambung…") : isCreating ? t("Create & Enter", "Cipta & Masuk") : t("Enter", "Masuk")}
           </button>
           <Link href="/" className="small center">
-            Kembali
+            {t("Back", "Kembali")}
           </Link>
         </form>
       </Shell>
@@ -217,12 +228,12 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     <Shell code={code} phase={state!.phase} connected={status === "open"}>
       {toast && (
         <div className="alert small" style={{ marginBottom: 12 }}>
-          {toast}
+          {tr(toast)}
         </div>
       )}
       {status !== "open" && (
         <div className="notice small" style={{ marginBottom: 12 }}>
-          Sambungan terputus — cuba menyambung semula…
+          {t("Connection lost — reconnecting…", "Sambungan terputus — cuba menyambung semula…")}
         </div>
       )}
       {state!.phase === "lobby" && <Lobby state={state!} me={me} send={room.send} onLeave={leave} />}
@@ -255,22 +266,26 @@ function Shell({
   connected?: boolean;
   children: React.ReactNode;
 }) {
+  const { t, tr } = useLang();
   return (
     <main className="page">
       <header className="room-header">
-        <Link href="/" aria-label="Laman utama">
+        <Link href="/" aria-label={t("Home", "Laman utama")}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="room-logo" src="/img/logo.jpg" alt="ChemVenture" />
         </Link>
         <div>
-          <div className="muted small">Bilik</div>
+          <div className="muted small">{t("Room", "Bilik")}</div>
           <div className="room-code">{code}</div>
         </div>
         <span className="spacer" />
-        {phase && <span className="phase-tag">{PHASE_LABEL[phase]}</span>}
-        <SoundControls />
+        {phase && <span className="phase-tag">{tr(PHASE_LABEL[phase])}</span>}
+        <div className="top-controls">
+          <LangToggle />
+          <SoundControls />
+        </div>
         {connected !== undefined && (
-          <span className={`conn-dot ${connected ? "" : "off"}`} title={connected ? "Bersambung" : "Terputus"} />
+          <span className={`conn-dot ${connected ? "" : "off"}`} title={connected ? t("Connected", "Bersambung") : t("Disconnected", "Terputus")} />
         )}
       </header>
       {children}

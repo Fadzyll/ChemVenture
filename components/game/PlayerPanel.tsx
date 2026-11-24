@@ -3,6 +3,7 @@
 import { CHARACTERS } from "@/shared/characters.ts";
 import { coinPoints } from "@/shared/config.ts";
 import type { ClientMessage, Player, RoomState } from "@/shared/types.ts";
+import { useLang } from "@/lib/i18n";
 import PlayerAvatar from "../PlayerAvatar";
 import { PowerDots } from "./PowerCard";
 
@@ -25,6 +26,7 @@ export default function PlayerPanel({
   me: Player;
   send: (m: ClientMessage) => void;
 }) {
+  const { t } = useLang();
   const currentId = state.game ? state.turnOrder[state.game.turnIndex] : null;
   const isHost = state.hostId === me.id;
   const stage = state.game?.stage;
@@ -53,17 +55,17 @@ export default function PlayerPanel({
               </div>
               <div className="row" style={{ gap: 6 }}>
                 <Coins p={p} />
-                <strong className="points">{coinPoints(p.coins)} mata</strong>
+                <strong className="points">{coinPoints(p.coins)} {t("pts", "mata")}</strong>
                 <PowerDots left={p.powersLeft} />
               </div>
               <div className="row" style={{ gap: 4, marginTop: 4 }}>
-                {isCurrent && <span className="badge badge-host">Giliran</span>}
-                {p.skipTurns > 0 && <span className="badge badge-wait">Rehat</span>}
-                {p.eliminated && <span className="badge badge-off">Tersingkir</span>}
-                {!p.connected && <span className="badge badge-off">Terputus</span>}
+                {isCurrent && <span className="badge badge-host">{t("Turn", "Giliran")}</span>}
+                {p.skipTurns > 0 && <span className="badge badge-wait">{t("Resting", "Rehat")}</span>}
+                {p.eliminated && <span className="badge badge-off">{t("Out", "Tersingkir")}</span>}
+                {!p.connected && <span className="badge badge-off">{t("Offline", "Terputus")}</span>}
                 {needsHelp && (
                   <button className="btn btn-ghost btn-small" onClick={() => send({ type: "actFor", playerId: p.id })}>
-                    Teruskan untuknya
+                    {t("Continue for them", "Teruskan untuknya")}
                   </button>
                 )}
               </div>

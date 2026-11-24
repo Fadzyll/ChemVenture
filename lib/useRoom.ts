@@ -2,6 +2,7 @@
 
 import { PartySocket } from "partysocket";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Text } from "@/shared/i18n.ts";
 import type { ClientMessage, ErrorCode, GameEvent, RoomState, ServerMessage } from "@/shared/types.ts";
 import { getPlayerId } from "./identity";
 
@@ -11,7 +12,7 @@ export type ConnectionStatus = "connecting" | "open" | "closed" | "replaced" | "
 
 export interface RoomError {
   code: ErrorCode;
-  message: string;
+  message: Text;
   at: number;
 }
 
