@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit && tsc --noEmit -p server",
-    "test": "node --experimental-strip-types --test shared/*.test.ts",
+    "test": "node --experimental-strip-types --test shared/*.test.ts server/*.test.ts",
     "deploy:server": "wrangler deploy"
   },
   "dependencies": {

@@ -21,6 +21,8 @@ export function useRoom(code: string, onEvent?: (e: GameEvent) => void) {
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
   const [playerId, setPlayerId] = useState<string>("");
   const socketRef = useRef<PartySocket | null>(null);
+  /** server clock minus local clock, so countdowns match on every device */
+  const offsetRef = useRef(0);
   /** What to send on every (re)connect so the server knows who this socket is. */
   const joinRef = useRef<ClientMessage | null>(null);
   const onEventRef = useRef(onEvent);
@@ -52,7 +54,10 @@ export function useRoom(code: string, onEvent?: (e: GameEvent) => void) {
       } catch {
         return;
       }
-      if (msg.type === "state") setState(msg.state);
+      if (msg.type === "state") {
+        if (typeof msg.now === "number") offsetRef.current = msg.now - Date.now();
+        setState(msg.state);
+      }
       else if (msg.type === "event") onEventRef.current?.(msg.event);
       else if (msg.type === "error") setError({ code: msg.code, message: msg.message, at: Date.now() });
     });
@@ -84,7 +89,9 @@ export function useRoom(code: string, onEvent?: (e: GameEvent) => void) {
     joinRef.current = null;
   }, []);
 
+  const serverNow = useCallback(() => Date.now() + offsetRef.current, []);
+
   const me = state?.players.find((p) => p.id === playerId) ?? null;
 
-  return { state, me, playerId, status, error, setError, send, enter, forget };
+  return { state, me, playerId, status, error, setError, send, enter, forget, serverNow };
 }

@@ -17,8 +17,10 @@ intents (`roll`, `pickCharacter`, …) and render the state they receive.
 - ✅ Phase 2: create/join by 5-letter code, name entry, ready, host-only start, kick, leave,
   refresh/reconnect keeps your seat, host hand-over, **dice roll for turn order**
   (ties re-roll and add, manual rule 1), **character pick in turn order**
-- ⏳ Phase 3: board movement, squares, questions, coins, timer, and switch the room server to
-  Durable Object **hibernation** (rooms stop using free-tier time while nobody is acting)
+- ✅ Phase 3: 2D board with the real board art, tokens walking square by square, all 8 square types,
+  question cards (Asas / Ion / Kovalen), DRUM (everyone answers, or a reward/penalty card),
+  RADIKAL / GANGGUAN choices, coins with change, elimination, 20-minute timer, results + play again,
+  room server uses Durable Object **hibernation** + alarms (no free-tier time used while idle)
 - ⏳ Phase 4: character powers · Phase 5: 3D (React Three Fiber) · Phase 6: polish
 
 ## Run locally
@@ -62,5 +64,11 @@ It prints a URL like `https://chemventure-server.<your-subdomain>.workers.dev`.
 
 ## Rules assumptions (to confirm)
 
-- Coins: singlet = 1, duplet = 2, oktet = 8 points.
+All numbers live in `shared/config.ts`; questions live in `server/cards.ts`.
+
+- Coins: singlet = 1, duplet = 2, oktet = 8 points. Start: 3 singlet + 2 duplet + 1 oktet (15 points).
+- ASAS correct: +1 singlet. ION / KOVALEN correct: +1 duplet. Wrong or time out (30 s): −1 singlet.
+- DRUM: 9 "everyone answers" questions (+1 duplet each correct player) and 7 reward/penalty cards.
+- Passing or landing on REAKSI: +1 duplet. RADIKAL / GANGGUAN cost: 1 singlet + 1 duplet.
+- The manual's KOVALEN cards are blank, so the 10 Kovalen questions are new — please review.
 - Lobby asks for name only; characters are chosen after the turn-order dice roll, highest first (manual rule 1).

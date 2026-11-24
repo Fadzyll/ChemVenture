@@ -7,7 +7,9 @@ import { generateRoomCode } from "@/shared/roomCode.ts";
 import { MAX_PLAYERS, NAME_MAX_LENGTH, type ErrorCode, type GameEvent, type Phase } from "@/shared/types.ts";
 import { clearJoined, getJoinedName, getSavedName, saveName, setJoinedName } from "@/lib/identity";
 import { useRoom } from "@/lib/useRoom";
-import GameReady from "./GameReady";
+import type { MoveAnim } from "./game/Board";
+import GameOver from "./game/GameOver";
+import GameView, { type RollAnim } from "./game/GameView";
 import Lobby from "./Lobby";
 import PickPhase from "./PickPhase";
 import RollPhase, { type LastRoll } from "./RollPhase";
@@ -24,6 +26,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   rolling: "Baling dadu",
   picking: "Pilih karakter",
   playing: "Permainan",
+  ended: "Tamat",
 };
 
 export default function RoomClient({ code, isCreating }: { code: string; isCreating: boolean }) {
@@ -31,9 +34,23 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
   const [lastRoll, setLastRoll] = useState<LastRoll | null>(null);
   const [holdResults, setHoldResults] = useState(false);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [move, setMove] = useState<MoveAnim | null>(null);
+  const [boardRoll, setBoardRoll] = useState<RollAnim | null>(null);
+  const [drumText, setDrumText] = useState<string | null>(null);
+  const drumTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onEvent = (e: GameEvent) => {
     if (e.type === "rolled") setLastRoll({ playerId: e.playerId, value: e.value, key: Date.now() });
+    if (e.type === "moved") {
+      const key = Date.now();
+      if (e.roll > 0) setBoardRoll({ value: e.roll, key });
+      setMove({ playerId: e.playerId, from: e.from, to: e.to, key });
+    }
+    if (e.type === "drumCard") {
+      setDrumText(e.text);
+      if (drumTimer.current) clearTimeout(drumTimer.current);
+      drumTimer.current = setTimeout(() => setDrumText(null), 8000);
+    }
     if (e.type === "turnOrderDecided") {
       setHoldResults(true);
       if (holdTimer.current) clearTimeout(holdTimer.current);
@@ -59,6 +76,7 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
     }
     return () => {
       if (holdTimer.current) clearTimeout(holdTimer.current);
+      if (drumTimer.current) clearTimeout(drumTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
@@ -200,7 +218,18 @@ export default function RoomClient({ code, isCreating }: { code: string; isCreat
       {state!.phase === "lobby" && <Lobby state={state!} me={me} send={room.send} onLeave={leave} />}
       {showRollResults && <RollPhase state={state!} me={me} send={room.send} lastRoll={lastRoll} />}
       {state!.phase === "picking" && !holdResults && <PickPhase state={state!} me={me} send={room.send} />}
-      {state!.phase === "playing" && <GameReady state={state!} me={me} />}
+      {state!.phase === "playing" && state!.game && (
+        <GameView
+          state={state!}
+          me={me}
+          send={room.send}
+          serverNow={room.serverNow}
+          move={move}
+          roll={boardRoll}
+          drumText={drumText}
+        />
+      )}
+      {state!.phase === "ended" && state!.game && <GameOver state={state!} me={me} send={room.send} onLeave={leave} />}
     </Shell>
   );
 }

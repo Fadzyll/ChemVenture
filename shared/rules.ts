@@ -3,6 +3,7 @@
  * the server passes dice values and timestamps in, so everything here is unit-testable.
  */
 import { CHARACTER_IDS, isCharacterId, type CharacterId } from "./characters.ts";
+import { START_COINS } from "./config.ts";
 import {
   DISCONNECT_GRACE_MS,
   MAX_PLAYERS,
@@ -31,6 +32,7 @@ export function createInitialState(code: string): RoomState {
     rollRound: 0,
     turnOrder: [],
     pickIndex: 0,
+    game: null,
   };
 }
 
@@ -51,6 +53,10 @@ function newPlayer(id: string, name: string): Player {
     rollTotal: 0,
     rolls: [],
     mustRoll: false,
+    position: 0,
+    coins: { ...START_COINS },
+    skipTurns: 0,
+    eliminated: false,
   };
 }
 
@@ -130,6 +136,7 @@ export function startGame(state: RoomState, playerId: string): Result {
   s.rollRound = 1;
   s.turnOrder = [];
   s.pickIndex = 0;
+  s.game = null;
   for (const p of s.players) {
     p.rollTotal = 0;
     p.rolls = [];
@@ -216,6 +223,22 @@ export function actFor(
     return pickCharacter(state, targetId, free);
   }
   return fail("NOT_ALLOWED", "Tiada tindakan diperlukan.");
+}
+
+/** After a game ends, the host can bring everyone back to the lobby with the same players. */
+export function playAgain(state: RoomState, playerId: string): Result {
+  if (state.hostId !== playerId) return fail("NOT_HOST", "Hanya hos boleh memulakan semula.");
+  if (state.phase !== "ended") return fail("NOT_ALLOWED", "Permainan belum tamat.");
+  const s = clone(state);
+  s.phase = "lobby";
+  s.game = null;
+  s.turnOrder = [];
+  s.pickIndex = 0;
+  s.rollRound = 0;
+  for (const p of s.players) {
+    Object.assign(p, newPlayer(p.id, p.name), { connected: p.connected, disconnectedAt: p.disconnectedAt });
+  }
+  return ok(s);
 }
 
 /** Leaving is only a real "leave" in the lobby; in-game it just marks the player disconnected. */

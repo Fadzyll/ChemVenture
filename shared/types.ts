@@ -1,4 +1,5 @@
 import type { CharacterId } from "./characters.ts";
+import type { Coins } from "./config.ts";
 
 export const MAX_PLAYERS = 5;
 export const MIN_PLAYERS = 2;
@@ -10,7 +11,8 @@ export type Phase =
   | "lobby" // players join, enter names, press ready
   | "rolling" // everyone rolls to decide turn order (ties re-roll and add)
   | "picking" // highest roller picks a character first, then the next...
-  | "playing"; // main game (Phase 3+)
+  | "playing" // the board game
+  | "ended"; // timer ran out or only one player left
 
 export interface Player {
   id: string;
@@ -26,6 +28,62 @@ export interface Player {
   rolls: number[];
   /** true while this player still has to roll in the current round */
   mustRoll: boolean;
+  // ---- board game ----
+  position: number;
+  coins: Coins;
+  /** turns this player must sit out (RADIKAL) */
+  skipTurns: number;
+  eliminated: boolean;
+}
+
+export type DeckId = "asas" | "ion" | "kovalen" | "drum";
+
+/** A question as the players see it. The answer key never leaves the server. */
+export interface PublicQuestion {
+  id: string;
+  deck: DeckId;
+  prompt: string;
+  options: string[];
+}
+
+export type Stage =
+  | { kind: "roll" }
+  | { kind: "choice"; square: "radikal" | "gangguan"; canPay: boolean; deadline: number }
+  | { kind: "question"; question: PublicQuestion; deadline: number }
+  | { kind: "drumQuestion"; question: PublicQuestion; answered: string[]; deadline: number }
+  | { kind: "result"; result: TurnResult; deadline: number };
+
+export interface TurnResult {
+  playerId: string;
+  title: string;
+  lines: string[];
+  question?: PublicQuestion;
+  correctIndex?: number;
+  /** player id → option index they picked (null = no answer / time out) */
+  answers?: Record<string, number | null>;
+  /** player id → change in coin points this turn */
+  deltas: Record<string, number>;
+}
+
+export interface LogEntry {
+  at: number;
+  text: string;
+}
+
+export interface GameState {
+  startedAt: number;
+  endsAt: number;
+  /** index into RoomState.turnOrder */
+  turnIndex: number;
+  turnNumber: number;
+  stage: Stage;
+  /** draw piles of card ids. Server-only: stripped before sending to players. */
+  decks?: Record<DeckId, string[]>;
+  log: LogEntry[];
+  lastMove: { playerId: string; from: number; to: number; roll: number; at: number } | null;
+  /** filled when the game ends */
+  winnerIds: string[];
+  endReason: "time" | "lastPlayer" | null;
 }
 
 export interface RoomState {
@@ -42,6 +100,7 @@ export interface RoomState {
   turnOrder: string[];
   /** index into turnOrder of who is picking a character right now */
   pickIndex: number;
+  game: GameState | null;
 }
 
 export type ClientMessage =
@@ -51,9 +110,12 @@ export type ClientMessage =
   | { type: "start" }
   | { type: "roll" }
   | { type: "pickCharacter"; character: CharacterId }
+  | { type: "answer"; choice: number }
+  | { type: "choose"; option: "pay" | "decline" }
   | { type: "kick"; playerId: string }
   /** host acts for a disconnected player so the game is not stuck */
   | { type: "actFor"; playerId: string }
+  | { type: "playAgain" }
   | { type: "leave" };
 
 export type ErrorCode =
@@ -75,9 +137,13 @@ export type GameEvent =
   | { type: "tie"; playerIds: string[]; round: number }
   | { type: "turnOrderDecided"; turnOrder: string[] }
   | { type: "picked"; playerId: string; character: CharacterId }
-  | { type: "kicked"; playerId: string };
+  | { type: "kicked"; playerId: string }
+  | { type: "moved"; playerId: string; from: number; to: number; roll: number; passedReaksi: boolean }
+  | { type: "drumCard"; playerId: string; text: string }
+  | { type: "eliminated"; playerId: string };
 
 export type ServerMessage =
-  | { type: "state"; state: RoomState }
+  /** `now` is the server clock, so screens can show accurate countdowns */
+  | { type: "state"; state: RoomState; now: number }
   | { type: "event"; event: GameEvent }
   | { type: "error"; code: ErrorCode; message: string };
